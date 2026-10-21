@@ -13,14 +13,14 @@ import org.lwjgl.glfw.GLFW;
  * GameRenderer.getPositionColorProgram API (removed in modern Minecraft).
  */
 public final class AcidVisualsScreen extends Screen {
-    private static final int BG = 0xF20B0E14;
-    private static final int SURFACE = 0xFF121720;
-    private static final int SURFACE_HOVER = 0xFF202638;
-    private static final int ACCENT = 0xFF9B7BFF;
+    private static final int BG = 0xE90A0B10;
+    private static final int SURFACE = 0xFF15151F;
+    private static final int SURFACE_HOVER = 0xFF252333;
+    private static final int ACCENT = 0xFFB18CFF;
     private static final int TEXT = 0xFFF4F5FB;
-    private static final int MUTED = 0xFF929DB0;
+    private static final int MUTED = 0xFF9A97AB;
 
-    private static final String[] TABS = {"RENDER", "VISUAL", "UTILITY"};
+    private static final String[] TABS = {"VISUALS", "HUD", "TOOLS"};
     private int selectedTab = 0;
     private final boolean[] enabled = {true, false, true, false, true, false};
     private final float[] hover = new float[12];
@@ -81,7 +81,7 @@ public final class AcidVisualsScreen extends Screen {
 
         drawText(context, "ACID", x + 36, y + 23, withAlpha(TEXT, fade));
         drawText(context, "VISUALS", x + 77, y + 23, withAlpha(ACCENT, fade));
-        drawSmall(context, "CLIENT INTERFACE  /  1.21.11", x + 36, y + 43, withAlpha(MUTED, fade));
+        drawSmall(context, "MYTHERIA-INSPIRED  /  1.21.11", x + 36, y + 43, withAlpha(MUTED, fade));
         drawSmall(context, "BETA", x + w - 66, y + 28, withAlpha(ACCENT, fade));
         rounded(context, x + 34, y + 63, w - 68, 1, 1, withAlpha(0xFF303747, fade));
 
@@ -236,25 +236,25 @@ public final class AcidVisualsScreen extends Screen {
             return;
         }
 
-        // Main body: two solid rectangles, then a small fixed number of corner bands.
+        // Fast rounded card. DrawContext's GUI pipeline is integer based in 1.21.11;
+        // keep the number of spans bounded to avoid the previous per-row FPS cost.
         ctx.fill(x + r, y, x + w - r, y + h, color);
         ctx.fill(x, y + r, x + w, y + h - r, color);
 
-        int bands = Math.min(8, r);
-        float rf = r;
+        // More corner samples for larger surfaces; cap at 12 to keep rendering cheap.
+        int bands = Math.min(12, Math.max(6, r));
+        double rr = (double) r * r;
         for (int i = 0; i < bands; i++) {
-            float py = (i + 0.5F) * r / bands;
-            float dy = rf - py;
-            int inset = Math.max(0, r - (int) Math.floor(Math.sqrt(Math.max(0.0F, rf * rf - dy * dy))));
-            int top = y + i * r / bands;
-            int bottom = y + (i + 1) * r / bands;
-            if (bottom <= top) bottom = top + 1;
-            ctx.fill(x + inset, top, x + w - inset, bottom, color);
+            double dy = r - ((i + 0.5D) * r / bands);
+            double insetValue = r - Math.sqrt(Math.max(0.0D, rr - dy * dy));
+            int inset = (int) Math.floor(insetValue);
+            int top = y + (int) Math.floor((double) i * r / bands);
+            int bottom = y + (int) Math.ceil((double) (i + 1) * r / bands);
+            if (bottom > top) ctx.fill(x + inset, top, x + w - inset, bottom, color);
 
-            int by = y + h - (i + 1) * r / bands;
-            int by2 = y + h - i * r / bands;
-            if (by2 <= by) by2 = by + 1;
-            ctx.fill(x + inset, by, x + w - inset, by2, color);
+            int by = y + h - (int) Math.ceil((double) (i + 1) * r / bands);
+            int by2 = y + h - (int) Math.floor((double) i * r / bands);
+            if (by2 > by) ctx.fill(x + inset, by, x + w - inset, by2, color);
         }
     }
 
