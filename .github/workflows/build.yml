@@ -1,0 +1,32 @@
+name: Build AcidVisuals
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+      - name: Build mod
+        run: ./gradlew --no-daemon build
+      - name: Upload JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: AcidVisuals-1.21.11
+          path: build/libs/*[!sources].jar
+          if-no-files-found: error
