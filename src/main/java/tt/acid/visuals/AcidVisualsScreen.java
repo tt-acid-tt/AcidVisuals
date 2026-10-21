@@ -219,8 +219,14 @@ public final class AcidVisualsScreen extends Screen {
     }
 
     /**
-     * Rounded rectangle rasterized as horizontal spans. This avoids square
-     * corners; each scanline computes its left/right inset from a circle.
+     * Fast rounded rectangle approximation. Unlike the previous implementation,
+     * this uses a fixed number of horizontal bands instead of drawing one span
+     * per pixel row. The old per-row loop caused hundreds of draw calls for
+     * every panel on every frame and was the main source of the FPS drop.
+     *
+     * Minecraft GUI coordinates are low resolution, so 6-8 bands are enough
+     * for small controls. For true subpixel antialiasing a dedicated shader or
+     * a pre-rendered high-resolution texture is needed.
      */
     private static void rounded(DrawContext ctx, int x, int y, int w, int h, int radius, int color) {
         if (w <= 0 || h <= 0 || (color >>> 24) == 0) return;
@@ -229,17 +235,26 @@ public final class AcidVisualsScreen extends Screen {
             ctx.fill(x, y, x + w, y + h, color);
             return;
         }
-        float rf = r - 0.35F;
-        for (int row = 0; row < h; row++) {
-            int inset = 0;
-            if (row < r) {
-                float dy = rf - row;
-                inset = Math.max(0, (int) Math.ceil(rf - (float) Math.sqrt(Math.max(0.0F, rf * rf - dy * dy))));
-            } else if (row >= h - r) {
-                float dy = rf - (h - 1 - row);
-                inset = Math.max(0, (int) Math.ceil(rf - (float) Math.sqrt(Math.max(0.0F, rf * rf - dy * dy))));
-            }
-            if (w - inset * 2 > 0) ctx.fill(x + inset, y + row, x + w - inset, y + row + 1, color);
+
+        // Main body: two solid rectangles, then a small fixed number of corner bands.
+        ctx.fill(x + r, y, x + w - r, y + h, color);
+        ctx.fill(x, y + r, x + w, y + h - r, color);
+
+        int bands = Math.min(8, r);
+        float rf = r;
+        for (int i = 0; i < bands; i++) {
+            float py = (i + 0.5F) * r / bands;
+            float dy = rf - py;
+            int inset = Math.max(0, r - (int) Math.floor(Math.sqrt(Math.max(0.0F, rf * rf - dy * dy))));
+            int top = y + i * r / bands;
+            int bottom = y + (i + 1) * r / bands;
+            if (bottom <= top) bottom = top + 1;
+            ctx.fill(x + inset, top, x + w - inset, bottom, color);
+
+            int by = y + h - (i + 1) * r / bands;
+            int by2 = y + h - i * r / bands;
+            if (by2 <= by) by2 = by + 1;
+            ctx.fill(x + inset, by, x + w - inset, by2, color);
         }
     }
 
