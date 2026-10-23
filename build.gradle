@@ -1,4 +1,4 @@
-plugins { id 'net.fabricmc.fabric-loom-remap' version "${loom_version}" }
+plugins { id 'fabric-loom' version "${loom_version}" }
 version=project.mod_version
 group=project.maven_group
 base { archivesName=project.archives_base_name }
