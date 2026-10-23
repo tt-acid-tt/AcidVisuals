@@ -2,31 +2,19 @@ package tt.acid.visuals;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
 
 public final class AcidVisualsCommon implements ModInitializer {
     @Override public void onInitialize() {
-        ServerTickEvents.END_SERVER_TICK.register(server -> {
-            for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-                if (GodSettings.flight && !player.isCreative() && !player.isSpectator()) {
-                    player.getAbilities().allowFlying = true;
-                    player.sendAbilitiesUpdate();
-                }
-                if (GodSettings.flight || player.getAbilities().flying) player.fallDistance = 0;
-            }
-        });
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
             if (!(entity instanceof ServerPlayerEntity player)) return true;
+            // This is authoritative only in a world/server where this mod is installed server-side.
+            if (GodSettings.invulnerability) return false;
             LivingEntity attacker = source.getAttacker() instanceof LivingEntity living ? living : null;
-            if (GodSettings.invulnerability) {
-                if (GodSettings.retaliation && attacker != null && attacker != player && attacker.isAlive())
-                    attacker.damage(player.getServerWorld(), player.getDamageSources().magic(), 10000.0F);
-                return false;
-            }
-            if (GodSettings.retaliation && attacker != null && attacker != player && attacker.isAlive())
+            if (GodSettings.retaliation && attacker != null && attacker != player && attacker.isAlive()) {
                 attacker.damage(player.getServerWorld(), player.getDamageSources().magic(), 10000.0F);
+            }
             return true;
         });
     }
