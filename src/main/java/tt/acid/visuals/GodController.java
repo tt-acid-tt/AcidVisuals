@@ -73,7 +73,8 @@ public final class GodController {
                 && hit.getEntity() instanceof LivingEntity target && target != player && tick % 2 == 0) {
             Vec3d hold = player.getCameraPosVec(1.0f).add(player.getRotationVec(1.0f).multiply(3.5));
             Vec3d delta = hold.subtract(target.getPos().add(0, target.getHeight() * 0.5, 0));
-            Vec3d velocity = delta.multiply(0.18).clamp(-0.65, 0.65);
+            Vec3d velocity = delta.multiply(0.18);
+            if (velocity.length() > 0.65) velocity = velocity.normalize().multiply(0.65);
             target.setVelocity(velocity);
             target.velocityModified = true;
             client.world.addParticle(ParticleTypes.END_ROD, target.getX(), target.getY() + target.getHeight() * .5, target.getZ(), 0, .025, 0);
@@ -101,6 +102,7 @@ public final class GodController {
                     double z = player.getZ() + (client.world.random.nextDouble() - .5) * 5;
                     client.world.addParticle(ParticleTypes.DRIPPING_WATER, x, player.getY() + .04, z, 0, 0, 0);
             }
+        }
         }
     }
 
