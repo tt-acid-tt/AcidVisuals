@@ -3,7 +3,6 @@ package tt.acid.visuals;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.narration.NarrationPart;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.text.Text;
@@ -61,7 +60,7 @@ public final class GodScreen extends Screen {
     private static final class ArtButton extends ButtonWidget {
         private final Supplier<Identifier> art;
         ArtButton(int x,int y,int w,int h,Text text,PressAction action,Supplier<Identifier> art) {
-            super(x,y,w,h,text,action,(button,builder) -> builder.put(NarrationPart.TITLE,button.getMessage()));
+            super(x,y,w,h,text,action,() -> text.copy());
             this.art=art;
         }
         @Override public void renderWidget(DrawContext ctx,int mouseX,int mouseY,float delta) {
