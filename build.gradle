@@ -78,16 +78,16 @@ tasks.register("generateGodArt") {
         make(new File(env,"sky_void.png"),2048,1024) { g,img,w,h ->
             g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(0,0,5),0,h,new java.awt.Color(18,8,40))); g.fillRect(0,0,w,h)
             for(int i=0;i<1400;i++){ int x=(int)(Math.random()*w),y=(int)(Math.random()*h),r=1+(int)(Math.random()*3); g.setColor(new java.awt.Color(160+(int)(Math.random()*95),150+(int)(Math.random()*105),255,80+(int)(Math.random()*175))); g.fillOval(x,y,r,r) }
-            g.setPaint(new java.awt.RadialGradientPaint(w* 0.53f,h* 0.48f,w* 0.45f,new float[]{0f,.55f,1f},new java.awt.Color[]{new java.awt.Color(94,25,180,75),new java.awt.Color(33,18,100,40),new java.awt.Color(0,0,0,0)})); g.fillRect(0,0,w,h)
+            g.setPaint(new java.awt.RadialGradientPaint((float)(w * 0.53),(float)(h * 0.48),(float)(w * 0.45),new float[]{0f,.55f,1f},new java.awt.Color[]{new java.awt.Color(94,25,180,75),new java.awt.Color(33,18,100,40),new java.awt.Color(0,0,0,0)})); g.fillRect(0,0,w,h)
         }
         make(new File(env,"sky_sunset.png"),2048,1024) { g,img,w,h ->
             g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(31,22,76),0,h,new java.awt.Color(255,102,74))); g.fillRect(0,0,w,h)
-            g.setPaint(new java.awt.RadialGradientPaint(w* 0.5f,h* 0.58f,h* 0.45f,new float[]{0f,.45f,1f},new java.awt.Color[]{new java.awt.Color(255,214,134,190),new java.awt.Color(255,109,113,60),new java.awt.Color(255,109,113,0)})); g.fillRect(0,0,w,h)
+            g.setPaint(new java.awt.RadialGradientPaint((float)(w * 0.5),(float)(h * 0.58),(float)(h * 0.45),new float[]{0f,.45f,1f},new java.awt.Color[]{new java.awt.Color(255,214,134,190),new java.awt.Color(255,109,113,60),new java.awt.Color(255,109,113,0)})); g.fillRect(0,0,w,h)
             for(int i=0;i<120;i++){ int x=(int)(Math.random()*w),y=(int)(Math.random()*h); g.setColor(new java.awt.Color(255,215,190,30)); g.fillOval(x,y,1,1) }
         }
         make(new File(fx,"laser_core.png"),512,64) { g,img,w,h ->
             g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(255,255,255,0),0,h,new java.awt.Color(255,255,255,0))); g.fillRect(0,0,w,h)
-            g.setPaint(new java.awt.RadialGradientPaint(0,h/2f,h* 0.52f,new float[]{0f,.22f,.55f,1f},new java.awt.Color[]{new java.awt.Color(255,255,255,255),new java.awt.Color(124,249,255,245),new java.awt.Color(35,147,255,180),new java.awt.Color(30,80,255,0)})); g.fillRect(0,0,w,h)
+            g.setPaint(new java.awt.RadialGradientPaint(0f,(float)(h / 2.0),(float)(h * 0.52),new float[]{0f,.22f,.55f,1f},new java.awt.Color[]{new java.awt.Color(255,255,255,255),new java.awt.Color(124,249,255,245),new java.awt.Color(35,147,255,180),new java.awt.Color(30,80,255,0)})); g.fillRect(0,0,w,h)
         }
         make(new File(fx,"puddle_normal.png"),1024,1024) { g,img,w,h ->
             g.setColor(new java.awt.Color(128,128,255)); g.fillRect(0,0,w,h)
