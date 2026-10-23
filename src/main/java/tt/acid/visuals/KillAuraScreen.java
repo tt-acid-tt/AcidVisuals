@@ -6,7 +6,7 @@ import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 import java.util.Locale;
 
-/** Compact, fully opaque configuration screen for the first working module. */
+/** Compact, fully opaque configuration screen for the first implemented module. */
 public final class KillAuraScreen extends Screen {
     private static final int BG = 0xFF10131A, PANEL = 0xFF191E28, PANEL_HOVER = 0xFF232A37;
     private static final int TRACK = 0xFF343D4D, TEXT = 0xFFF3F5FA, MUTED = 0xFFABB4C5, ACCENT = 0xFF9D85FF;
@@ -17,7 +17,7 @@ public final class KillAuraScreen extends Screen {
 
     @Override
     public void render(DrawContext c, int mouseX, int mouseY, float delta) {
-        c.fill(0, 0, width, height, BG); // opaque: no world blur
+        c.fill(0, 0, width, height, BG);
         int w = Math.min(650, width - 28), h = Math.min(410, height - 28);
         int x = (width - w) / 2, y = (height - h) / 2;
         round(c, x, y, w, h, 18, PANEL);
@@ -34,11 +34,11 @@ public final class KillAuraScreen extends Screen {
         round(c, right - 52, rowY + 17, 38, 19, 10, KillAuraSettings.enabled ? ACCENT : TRACK);
         round(c, right - 49 + (KillAuraSettings.enabled ? 19 : 0), rowY + 20, 13, 13, 7, 0xFFFFFFFF);
 
-        slider(c, x, y, w, 0, "Дальность", String.format(Locale.ROOT, "%.1f блока", KillAuraSettings.range), (KillAuraSettings.range - 1f) / 5f);
-        slider(c, x, y, w, 1, "Скорость атак", KillAuraSettings.attacksPerSecond + " в секунду (макс.)", (KillAuraSettings.attacksPerSecond - 1f) / 19f);
-        slider(c, x, y, w, 2, "Максимальный урон", KillAuraSettings.damageCharge + "% заряда удара", (KillAuraSettings.damageCharge - 10f) / 90f);
-        small(c, "Урон зависит от оружия и правил сервера. Ползунок урона задаёт заряд", x + 28, y + h - 39);
-        small(c, "ванильной атаки: высокий процент требует более сильного удара.", x + 28, y + h - 25);
+        slider(c, x, y, w, 0, "Дальность", String.format(Locale.ROOT, "%.1f блока", KillAuraSettings.range), (KillAuraSettings.range - 1f) / 2f);
+        slider(c, x, y, w, 1, "Скорость атак", KillAuraSettings.attacksPerSecond + " в секунду (лимит)", (KillAuraSettings.attacksPerSecond - 1f) / 3f);
+        slider(c, x, y, w, 2, "Заряд удара", KillAuraSettings.damageCharge + "% перед атакой", (KillAuraSettings.damageCharge - 10f) / 90f);
+        small(c, "Ограниченная дальность и плавный поворот уменьшают ложные срабатывания,", x + 28, y + h - 39);
+        small(c, "но не обходят и не отключают серверную защиту.", x + 28, y + h - 25);
         super.render(c, mouseX, mouseY, delta);
     }
 
@@ -89,8 +89,8 @@ public final class KillAuraScreen extends Screen {
     private void updateSlider(double mx, int x, int w, int index) {
         double minX = x + 30, maxX = x + w - 30;
         float p = (float)Math.max(0, Math.min(1, (mx - minX) / (maxX - minX)));
-        if (index == 0) KillAuraSettings.range = Math.round((1f + p * 5f) * 10f) / 10f;
-        else if (index == 1) KillAuraSettings.attacksPerSecond = 1 + Math.round(p * 19f);
+        if (index == 0) KillAuraSettings.range = Math.round((1f + p * 2f) * 10f) / 10f;
+        else if (index == 1) KillAuraSettings.attacksPerSecond = 1 + Math.round(p * 3f);
         else KillAuraSettings.damageCharge = 10 + Math.round(p * 18f) * 5;
     }
     @Override public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
