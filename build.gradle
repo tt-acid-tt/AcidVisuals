@@ -35,7 +35,7 @@ tasks.register("generateGodArt") {
         def rr = { int x,int y,int w,int h,int r -> new java.awt.geom.RoundRectangle2D.Double(x,y,w,h,r,r) }
         make(new File(gui,"panel.png"),1024,768) { g,img,w,h ->
             g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(19,25,36,248),w,h,new java.awt.Color(8,12,20,246))); g.fillRect(0,0,w,h)
-            for(int i=0;i<32;i++){ g.setColor(new java.awt.Color(80,170,210,Math.max(1,20-i.intdiv(2)))); g.setStroke(new java.awt.BasicStroke(1f+i* 0.12f)); g.draw(rr.call(i,i,w-2*i,h-2*i,52)) }
+            for(int i=0;i<32;i++){ g.setColor(new java.awt.Color(80,170,210,Math.max(1,20-i.intdiv(2)))); g.setStroke(new java.awt.BasicStroke((float)(1.0 + i * 0.12))); g.draw(rr.call(i,i,w-2*i,h-2*i,52)) }
             g.setColor(new java.awt.Color(92,225,255,170)); g.setStroke(new java.awt.BasicStroke(3f)); g.draw(rr.call(5,5,w-10,h-10,48))
             g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(99,230,255,130),w,0,new java.awt.Color(99,230,255,0))); g.fill(rr.call(38,20,w-76,5,4))
             for(int i=0;i<4500;i++){ int x=(int)(Math.random()*w), y=(int)(Math.random()*h); g.setColor(new java.awt.Color(180,225,255,(int)(Math.random()*10))); g.fillRect(x,y,1,1) }
@@ -95,7 +95,7 @@ tasks.register("generateGodArt") {
         }
         make(new File(fx,"puddle_surface.png"),1024,1024) { g,img,w,h ->
             g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(14,28,43,230),w,h,new java.awt.Color(29,56,75,220))); g.fillRect(0,0,w,h)
-            for(int i=0;i<240;i++){ int x=(int)(Math.random()*w),y=(int)(Math.random()*h); g.setColor(new java.awt.Color(180,232,255,20+(int)(Math.random()*65))); g.setStroke(new java.awt.BasicStroke(1+(float)Math.random()*3)); g.draw(new java.awt.geom.Arc2D.Double(x,y,20+Math.random()*200,4+Math.random()*50,0,180,java.awt.geom.Arc2D.OPEN)) }
+            for(int i=0;i<240;i++){ int x=(int)(Math.random()*w),y=(int)(Math.random()*h); g.setColor(new java.awt.Color(180,232,255,20+(int)(Math.random()*65))); g.setStroke(new java.awt.BasicStroke((float)(1.0 + Math.random() * 3.0))); g.draw(new java.awt.geom.Arc2D.Double(x,y,20+Math.random()*200,4+Math.random()*50,0,180,java.awt.geom.Arc2D.OPEN)) }
             g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(255,255,255,45),0,h/2f,new java.awt.Color(255,255,255,0))); g.fillRect(0,0,w,h/2)
         }
     }
