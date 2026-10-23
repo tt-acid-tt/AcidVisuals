@@ -96,7 +96,7 @@ tasks.register("generateGodArt") {
         make(new File(fx,"puddle_surface.png"),1024,1024) { g,img,w,h ->
             g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(14,28,43,230),w,h,new java.awt.Color(29,56,75,220))); g.fillRect(0,0,w,h)
             for(int i=0;i<240;i++){ int x=(int)(Math.random()*w),y=(int)(Math.random()*h); g.setColor(new java.awt.Color(180,232,255,20+(int)(Math.random()*65))); g.setStroke(new java.awt.BasicStroke((float)(1.0 + Math.random() * 3.0))); g.draw(new java.awt.geom.Arc2D.Double(x,y,20+Math.random()*200,4+Math.random()*50,0,180,java.awt.geom.Arc2D.OPEN)) }
-            g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(255,255,255,45),0,h/2f,new java.awt.Color(255,255,255,0))); g.fillRect(0,0,w,h/2)
+            g.setPaint(new java.awt.GradientPaint(0f,0f,new java.awt.Color(255,255,255,45),0f,(float)(h / 2.0),new java.awt.Color(255,255,255,0))); g.fillRect(0,0,w,h/2)
         }
     }
 }
