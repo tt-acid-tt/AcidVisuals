@@ -60,7 +60,7 @@ public final class GodScreen extends Screen {
     private static final class ArtButton extends ButtonWidget {
         private final Supplier<Identifier> art;
         ArtButton(int x,int y,int w,int h,Text text,PressAction action,Supplier<Identifier> art) {
-            super(x,y,w,h,text,action,() -> text.copy());
+            super(x,y,w,h,text,action,supplier -> supplier.get());
             this.art=art;
         }
         @Override public void renderWidget(DrawContext ctx,int mouseX,int mouseY,float delta) {
