@@ -6,7 +6,7 @@ import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 import java.util.Locale;
 
-/** Compact, fully opaque configuration screen for the first implemented module. */
+/** Opaque, sharp configuration screen for AcidAura. */
 public final class KillAuraScreen extends Screen {
     private static final int BG = 0xFF10131A, PANEL = 0xFF191E28, PANEL_HOVER = 0xFF232A37;
     private static final int TRACK = 0xFF343D4D, TEXT = 0xFFF3F5FA, MUTED = 0xFFABB4C5, ACCENT = 0xFF9D85FF;
@@ -15,10 +15,16 @@ public final class KillAuraScreen extends Screen {
     public KillAuraScreen() { super(Text.literal("AcidAura")); }
     @Override public boolean shouldPause() { return false; }
 
+    // Explicitly suppress vanilla background blur behind this screen.
+    @Override
+    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
+        // The screen draws its own opaque background in render().
+    }
+
     @Override
     public void render(DrawContext c, int mouseX, int mouseY, float delta) {
         c.fill(0, 0, width, height, BG);
-        int w = Math.min(650, width - 28), h = Math.min(410, height - 28);
+        int w = Math.min(650, width - 28), h = Math.min(490, height - 24);
         int x = (width - w) / 2, y = (height - h) / 2;
         round(c, x, y, w, h, 18, PANEL);
         round(c, x + 22, y + 22, 4, 46, 2, ACCENT);
@@ -37,13 +43,13 @@ public final class KillAuraScreen extends Screen {
         slider(c, x, y, w, 0, "Дальность", String.format(Locale.ROOT, "%.1f блока", KillAuraSettings.range), (KillAuraSettings.range - 1f) / 2f);
         slider(c, x, y, w, 1, "Скорость атак", KillAuraSettings.attacksPerSecond + " в секунду (лимит)", (KillAuraSettings.attacksPerSecond - 1f) / 3f);
         slider(c, x, y, w, 2, "Заряд удара", KillAuraSettings.damageCharge + "% перед атакой", (KillAuraSettings.damageCharge - 10f) / 90f);
-        small(c, "Ограниченная дальность и плавный поворот уменьшают ложные срабатывания,", x + 28, y + h - 39);
-        small(c, "но не обходят и не отключают серверную защиту.", x + 28, y + h - 25);
+        slider(c, x, y, w, 3, "Скорость наведения", KillAuraSettings.aimSpeed + "/10", (KillAuraSettings.aimSpeed - 1f) / 9f);
+        small(c, "Поворот камеры плавный и ограничен выбранной скоростью.", x + 28, y + h - 28);
         super.render(c, mouseX, mouseY, delta);
     }
 
     private void slider(DrawContext c, int x, int y, int w, int index, String label, String value, float progress) {
-        int top = y + 160 + index * 65, left = x + 30, right = x + w - 30;
+        int top = y + 150 + index * 65, left = x + 30, right = x + w - 30;
         text(c, label, left, top, TEXT);
         text(c, value, right - textRenderer.getWidth(value), top, ACCENT);
         int sx = left, sy = top + 26, sw = right - left;
@@ -72,11 +78,11 @@ public final class KillAuraScreen extends Screen {
 
     @Override public boolean mouseClicked(double mx, double my, int button) {
         if (button != 0) return super.mouseClicked(mx, my, button);
-        int w = Math.min(650, width - 28), h = Math.min(410, height - 28), x = (width - w) / 2, y = (height - h) / 2;
+        int w = Math.min(650, width - 28), h = Math.min(490, height - 24), x = (width - w) / 2, y = (height - h) / 2;
         int left = x + 28, right = x + w - 28, rowY = y + 94;
         if (hit(mx, my, left, rowY, w - 56, 52)) { KillAuraSettings.enabled = !KillAuraSettings.enabled; return true; }
-        for (int i = 0; i < 3; i++) {
-            int top = y + 160 + i * 65;
+        for (int i = 0; i < 4; i++) {
+            int top = y + 150 + i * 65;
             if (hit(mx, my, left, top + 16, right - left, 26)) { dragging = i; updateSlider(mx, x, w, i); return true; }
         }
         return true;
@@ -91,7 +97,8 @@ public final class KillAuraScreen extends Screen {
         float p = (float)Math.max(0, Math.min(1, (mx - minX) / (maxX - minX)));
         if (index == 0) KillAuraSettings.range = Math.round((1f + p * 2f) * 10f) / 10f;
         else if (index == 1) KillAuraSettings.attacksPerSecond = 1 + Math.round(p * 3f);
-        else KillAuraSettings.damageCharge = 10 + Math.round(p * 18f) * 5;
+        else if (index == 2) KillAuraSettings.damageCharge = 10 + Math.round(p * 18f) * 5;
+        else KillAuraSettings.aimSpeed = 1 + Math.round(p * 9f);
     }
     @Override public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (keyCode == GLFW.GLFW_KEY_ESCAPE || keyCode == GLFW.GLFW_KEY_RIGHT_SHIFT) { if (client != null) client.setScreen(null); return true; }
