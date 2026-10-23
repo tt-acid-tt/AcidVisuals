@@ -1,112 +1,143 @@
 package tt.acid.visuals;
 
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LightningEntity;
-import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.projectile.ProjectileUtil;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
-import net.minecraft.world.World;
 import org.lwjgl.glfw.GLFW;
 
 public final class GodController {
-    private static boolean laserWasDown;
     private static int tick;
+    private static boolean laserWasDown;
+    private static boolean telekinesisWasDown;
+    private static boolean lanternWasDown;
+    private static boolean jumpWasDown;
+    private static boolean wetWasDown;
     private GodController() {}
 
     public static void tick(MinecraftClient client) {
-        if (client.player == null || client.world == null) return;
+        if (client.player == null || client.world == null || client.getWindow() == null) return;
         tick++;
         var player = client.player;
+        long window = client.getWindow().getHandle();
 
         if (GodSettings.flight) {
             player.getAbilities().allowFlying = true;
-            if (!player.getAbilities().flying) player.getAbilities().flying = true;
+            player.getAbilities().flying = true;
             player.getAbilities().setFlySpeed(0.08f);
-            player.sendAbilitiesUpdate();
+            player.fallDistance = 0;
         }
-        if (GodSettings.invulnerability && tick % 40 == 0) {
-            player.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 80, 4, false, false, false));
-            player.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 80, 2, false, false, false));
+
+        if (GodSettings.invulnerability && tick % 30 == 0) {
+            player.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(
+                    net.minecraft.entity.effect.StatusEffects.RESISTANCE, 80, 4, false, false, false));
+            player.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(
+                    net.minecraft.entity.effect.StatusEffects.REGENERATION, 80, 2, false, false, false));
             player.setFireTicks(0);
         }
-        if (GodSettings.killAura && tick % 3 == 0) {
-            double range = Math.max(1.0, Math.min(128.0, GodSettings.killRange));
+
+        if (GodSettings.killAura && tick % 4 == 0 && client.interactionManager != null) {
+            double range = Math.max(1.0, Math.min(64.0, GodSettings.killRange));
             for (Entity entity : client.world.getOtherEntities(player, player.getBoundingBox().expand(range))) {
-                if (entity instanceof LivingEntity living && living.isAlive()
-                        && player.distanceTo(living) <= range && living != player) {
+                if (entity instanceof LivingEntity living && living.isAlive() && player.distanceTo(living) <= range) {
                     client.interactionManager.attackEntity(player, living);
                 }
             }
         }
+
         if (GodSettings.timeStop && tick % 5 == 0) {
-            for (Entity entity : client.world.getOtherEntities(player, player.getBoundingBox().expand(18))) {
+            for (Entity entity : client.world.getOtherEntities(player, player.getBoundingBox().expand(12))) {
                 if (entity instanceof LivingEntity living && living != player) {
                     living.setVelocity(Vec3d.ZERO);
                     living.velocityModified = true;
                 }
             }
         }
-        if (GodSettings.telekinesis && tick % 2 == 0) {
-            Vec3d pullTo = player.getPos().add(0, 1, 0);
-            for (Entity entity : client.world.getOtherEntities(player, player.getBoundingBox().expand(16))) {
-                if (entity instanceof LivingEntity living && living != player) {
-                    Vec3d delta = pullTo.subtract(living.getPos()).normalize().multiply(0.22);
-                    living.addVelocity(delta.x, delta.y + 0.03, delta.z);
-                }
-            }
+
+        boolean laserDown = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_G) == GLFW.GLFW_PRESS;
+        if (GodSettings.eyeLaser && laserDown && !laserWasDown) fireLaser(client);
+        laserWasDown = laserDown;
+
+        boolean telekinesisDown = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_H) == GLFW.GLFW_PRESS;
+        if (telekinesisDown && !telekinesisWasDown) GodSettings.telekinesis = !GodSettings.telekinesis;
+        telekinesisWasDown = telekinesisDown;
+        if (GodSettings.telekinesis && client.crosshairTarget instanceof EntityHitResult hit
+                && hit.getEntity() instanceof LivingEntity target && target != player && tick % 2 == 0) {
+            Vec3d hold = player.getCameraPosVec(1.0f).add(player.getRotationVec(1.0f).multiply(3.5));
+            Vec3d delta = hold.subtract(target.getPos().add(0, target.getHeight() * 0.5, 0));
+            Vec3d velocity = delta.multiply(0.18).clamp(-0.65, 0.65);
+            target.setVelocity(velocity);
+            target.velocityModified = true;
+            client.world.addParticle(ParticleTypes.END_ROD, target.getX(), target.getY() + target.getHeight() * .5, target.getZ(), 0, .025, 0);
         }
 
-        boolean laserDown = GLFW.glfwGetMouseButton(client.getWindow().getHandle(), GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS;
-        if (GodSettings.homeLantern && GodSettings.eyeLaser && laserDown && !laserWasDown) fireLaser(client);
-        laserWasDown = laserDown;
+        boolean lanternDown = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_B) == GLFW.GLFW_PRESS;
+        if (lanternDown && !lanternWasDown) GodSettings.homeLantern = !GodSettings.homeLantern;
+        lanternWasDown = lanternDown;
+
+        boolean jumpDown = player.isOnGround() && player.getVelocity().y > 0.05;
+        if (GodSettings.jumpCircle && jumpDown && !jumpWasDown) {
+            for (int i = 0; i < 40; i++) {
+                double a = Math.PI * 2 * i / 40.0;
+                client.world.addParticle(ParticleTypes.END_ROD, player.getX() + Math.cos(a) * .8,
+                        player.getY() + .08, player.getZ() + Math.sin(a) * .8, 0, .025, 0);
+            }
+        }
+        jumpWasDown = jumpDown;
+
+        if (GodSettings.wetFloor && tick % 8 == 0) {
+            BlockPos below = player.getBlockPos().down();
+            if (!client.world.getBlockState(below).isAir()) {
+                for (int i = 0; i < 10; i++) {
+                    double x = player.getX() + (client.world.random.nextDouble() - .5) * 5;
+                    double z = player.getZ() + (client.world.random.nextDouble() - .5) * 5;
+                    client.world.addParticle(ParticleTypes.DRIPPING_WATER, x, player.getY() + .04, z, 0, 0, 0);
+            }
+        }
     }
 
     private static void fireLaser(MinecraftClient client) {
         var player = client.player;
         var world = client.world;
         if (player == null || world == null) return;
-        Vec3d start = player.getCameraPosVec(1.0f);
-        Vec3d end = start.add(player.getRotationVec(1.0f).multiply(48.0));
-        BlockHitResult hit = world.raycast(new RaycastContext(start, end, RaycastContext.ShapeType.OUTLINE,
-                RaycastContext.FluidHandling.NONE, player));
-        Vec3d stop = hit.getType() == HitResult.Type.MISS ? end : hit.getPos();
-        Vec3d direction = stop.subtract(start).normalize();
-        for (int i = 0; i < 48; i++) {
-            Vec3d p = start.add(direction.multiply(i));
-            world.addParticle(ParticleTypes.FLAME, p.x, p.y, p.z, 0, 0.01, 0);
-            world.addParticle(ParticleTypes.SOUL_FIRE_FLAME, p.x, p.y, p.z, 0, 0, 0);
-        }
-        if (hit.getType() == HitResult.Type.BLOCK) {
-            BlockPos pos = hit.getBlockPos().offset(hit.getSide());
-            if (world.isClient) {
-                for (int i = 0; i < 20; i++) {
-                    world.addParticle(ParticleTypes.EXPLOSION, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 0, 0, 0);
-                }
+        Vec3d look = player.getRotationVec(1.0f);
+        Vec3d eye = player.getCameraPosVec(1.0f);
+        Vec3d right = look.crossProduct(new Vec3d(0, 1, 0)).normalize().multiply(.105);
+        for (int side = -1; side <= 1; side += 2) {
+            Vec3d start = eye.add(right.multiply(side));
+            Vec3d end = start.add(look.multiply(48));
+            BlockHitResult block = world.raycast(new RaycastContext(start, end,
+                    RaycastContext.ShapeType.OUTLINE, RaycastContext.FluidHandling.NONE, player));
+            EntityHitResult entityHit = ProjectileUtil.raycast(player, start, end,
+                    new Box(start, end).expand(.25), entity -> entity.isAlive() && entity != player, 48 * 48);
+            Vec3d stop = end;
+            if (block.getType() != HitResult.Type.MISS) stop = block.getPos();
+            if (entityHit != null && start.squaredDistanceTo(entityHit.getPos()) < start.squaredDistanceTo(stop)) stop = entityHit.getPos();
+            Vec3d line = stop.subtract(start);
+            int count = Math.max(1, (int)(line.length() * 5));
+            for (int i = 0; i <= count; i++) {
+                Vec3d p = start.add(line.multiply(i / (double) count));
+                world.addParticle(ParticleTypes.END_ROD, p.x, p.y, p.z, 0, 0, 0);
+                if (i % 2 == 0) world.addParticle(ParticleTypes.SOUL_FIRE_FLAME, p.x, p.y, p.z, 0, 0, 0);
             }
-            // The local single-player integrated server handles the actual world effect through the vanilla command-free interaction.
-            client.player.networkHandler.sendChatCommand("summon minecraft:lightning_bolt " + pos.getX() + " " + pos.getY() + " " + pos.getZ());
+            if (entityHit != null && client.interactionManager != null) {
+                client.interactionManager.attackEntity(player, entityHit.getEntity());
+                world.addParticle(ParticleTypes.EXPLOSION, stop.x, stop.y, stop.z, 0, 0, 0);
+            } else if (block.getType() != HitResult.Type.MISS) {
+                Vec3d p = block.getPos();
+                for (int i = 0; i < 12; i++) {
+                    world.addParticle(ParticleTypes.FLAME, p.x, p.y, p.z, (world.random.nextDouble()-.5)*.12, .05, (world.random.nextDouble()-.5)*.12);
+                }
+                world.addParticle(ParticleTypes.EXPLOSION, p.x, p.y, p.z, 0, 0, 0);
+            }
         }
-    }
-
-    public static void strikeLightning(MinecraftClient client) {
-        if (client.player == null || client.world == null) return;
-        BlockPos pos = client.player.getBlockPos().offset(client.player.getHorizontalFacing(), 4);
-        client.player.networkHandler.sendChatCommand("summon minecraft:lightning_bolt " + pos.getX() + " " + pos.getY() + " " + pos.getZ());
-    }
-
-    public static void teleportForward(MinecraftClient client) {
-        if (client.player == null) return;
-        Vec3d p = client.player.getPos().add(client.player.getRotationVec(1.0f).multiply(8.0));
-        client.player.networkHandler.sendChatCommand("tp @s " + p.x + " " + p.y + " " + p.z);
     }
 }
