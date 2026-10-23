@@ -41,15 +41,15 @@ tasks.register("generateGodArt") {
             for(int i=0;i<4500;i++){ int x=(int)(Math.random()*w), y=(int)(Math.random()*h); g.setColor(new java.awt.Color(180,225,255,(int)(Math.random()*10))); g.fillRect(x,y,1,1) }
         }
         def buttonPaint = { boolean hover -> { g,img,w,h ->
-            g.setPaint(new java.awt.GradientPaint(0,0,hover?new java.awt.Color(47,94,117,248):new java.awt.Color(35,48,65,245),0,h,hover?new java.awt.Color(24,56,75,248):new java.awt.Color(19,29,43,245))); g.fill(rr.call(3,3,w-6,h-6,34)
-            g.setColor(hover?new java.awt.Color(117,236,255,240):new java.awt.Color(105,145,173,135)); g.setStroke(new java.awt.BasicStroke(3)); g.draw(rr.call(3,3,w-6,h-6,34)
+            g.setPaint(new java.awt.GradientPaint(0,0,hover?new java.awt.Color(47,94,117,248):new java.awt.Color(35,48,65,245),0,h,hover?new java.awt.Color(24,56,75,248):new java.awt.Color(19,29,43,245))); g.fill(rr.call(3,3,w-6,h-6,34))
+            g.setColor(hover?new java.awt.Color(117,236,255,240):new java.awt.Color(105,145,173,135)); g.setStroke(new java.awt.BasicStroke(3)); g.draw(rr.call(3,3,w-6,h-6,34))
             g.setColor(new java.awt.Color(255,255,255,20)); g.drawLine(24,8,w-24,8)
         } }
         make(new File(gui,"button.png"),512,96,buttonPaint(false))
         make(new File(gui,"button_hover.png"),512,96,buttonPaint(true))
         make(new File(gui,"toggle_off.png"),256,128) { g,img,w,h ->
-            g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(38,48,63),w,h,new java.awt.Color(17,24,36))); g.fill(rr.call(3,3,w-6,h-6,100)
-            g.setColor(new java.awt.Color(123,153,177,170)); g.setStroke(new java.awt.BasicStroke(4)); g.draw(rr.call(3,3,w-6,h-6,100)
+            g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(38,48,63),w,h,new java.awt.Color(17,24,36))); g.fill(rr.call(3,3,w-6,h-6,100))
+            g.setColor(new java.awt.Color(123,153,177,170)); g.setStroke(new java.awt.BasicStroke(4)); g.draw(rr.call(3,3,w-6,h-6,100))
             g.setColor(new java.awt.Color(165,184,200)); g.fill(new java.awt.geom.Ellipse2D.Double(12,12,104,104))
         }
         make(new File(gui,"toggle_on.png"),256,128) { g,img,w,h ->
@@ -58,11 +58,11 @@ tasks.register("generateGodArt") {
             g.setPaint(new java.awt.RadialGradientPaint(196,64,70,new float[]{0f,1f},new java.awt.Color[]{new java.awt.Color(255,255,255,240),new java.awt.Color(205,248,255,230)})); g.fill(new java.awt.geom.Ellipse2D.Double(140,12,104,104))
         }
         make(new File(gui,"slider_track.png"),1024,96) { g,img,w,h ->
-            g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(18,28,42),0,h,new java.awt.Color(37,52,69))); g.fill(rr.call(2,20,w-4,h-40,40)
-            g.setColor(new java.awt.Color(95,147,175,180)); g.setStroke(new java.awt.BasicStroke(3)); g.draw(rr.call(2,20,w-4,h-40,40)
+            g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(18,28,42),0,h,new java.awt.Color(37,52,69))); g.fill(rr.call(2,20,w-4,h-40,40))
+            g.setColor(new java.awt.Color(95,147,175,180)); g.setStroke(new java.awt.BasicStroke(3)); g.draw(rr.call(2,20,w-4,h-40,40))
         }
         make(new File(gui,"slider_thumb.png"),128,128) { g,img,w,h ->
-            g.setPaint(new java.awt.RadialGradientPaint(64,64,62,new float[]{0f,.75f,1f},new java.awt.Color[]{new java.awt.Color(225,255,255),new java.awt.Color(79,216,255),new java.awt.Color(37,102,205)})); g.fill(new java.awt.geom.Ellipse2D.Double(4,4,120,120)
+            g.setPaint(new java.awt.RadialGradientPaint(64,64,62,new float[]{0f,.75f,1f},new java.awt.Color[]{new java.awt.Color(225,255,255),new java.awt.Color(79,216,255),new java.awt.Color(37,102,205)})); g.fill(new java.awt.geom.Ellipse2D.Double(4,4,120,120))
             g.setColor(new java.awt.Color(255,255,255,200)); g.setStroke(new java.awt.BasicStroke(3)); g.draw(new java.awt.geom.Ellipse2D.Double(5,5,118,118)
         }
         make(new File(gui,"orb.png"),256,256) { g,img,w,h ->
@@ -95,7 +95,7 @@ tasks.register("generateGodArt") {
         }
         make(new File(fx,"puddle_surface.png"),1024,1024) { g,img,w,h ->
             g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(14,28,43,230),w,h,new java.awt.Color(29,56,75,220))); g.fillRect(0,0,w,h)
-            for(int i=0;i<240;i++){ int x=(int)(Math.random()*w),y=(int)(Math.random()*h); g.setColor(new java.awt.Color(180,232,255,20+(int)(Math.random()*65))); g.setStroke(new java.awt.BasicStroke(1+(float)Math.random()*3)); g.draw(new java.awt.geom.Arc2D.Double(x,y,20+Math.random()*200,4+Math.random()*50,0,180,java.awt.geom.Arc2D.OPEN) }
+            for(int i=0;i<240;i++){ int x=(int)(Math.random()*w),y=(int)(Math.random()*h); g.setColor(new java.awt.Color(180,232,255,20+(int)(Math.random()*65))); g.setStroke(new java.awt.BasicStroke(1+(float)Math.random()*3)); g.draw(new java.awt.geom.Arc2D.Double(x,y,20+Math.random()*200,4+Math.random()*50,0,180,java.awt.geom.Arc2D.OPEN)) }
             g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(255,255,255,45),0,h/2f,new java.awt.Color(255,255,255,0))); g.fillRect(0,0,w,h/2)
         }
     }
