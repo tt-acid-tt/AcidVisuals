@@ -54,9 +54,9 @@ public final class AcidVisualsStudioScreen extends Screen {
         case 2->{if(i==0)AcidVisualsClientSettings.targetHudEnabled=!AcidVisualsClientSettings.targetHudEnabled;}
         default->{if(i==0)AcidVisualsClientSettings.antiCheatEnabled=!AcidVisualsClientSettings.antiCheatEnabled;else AcidVisualsClientSettings.movementChecksEnabled=!AcidVisualsClientSettings.movementChecksEnabled;}
     }}
-    @Override public boolean mouseClicked(double mx,double my,int b){if(b!=0)return super.mouseClicked(mx,my,b);int w=Math.min(820,width-32),h=Math.min(500,height-28),x=(width-w)/2,y=(height-h)/2,sx=x+30,sy=y+86,sw=178;for(int i=0;i<PAGES.length;i++)if(hit(mx,my,sx,sy+i*48,sw,40)){page=i;return true;}int cx=x+248,cy=y+91,cw=w-278;for(int i=0;i<rows().length;i++)if(hit(mx,my,cx,cy+52+i*54,cw,46)){toggle(i);return true;}if(!hit(mx,my,x,y,w,h)){close();return true;}return true;}
-    @Override public boolean keyPressed(int k,int s,int m){if(k==GLFW.GLFW_KEY_ESCAPE||k==GLFW.GLFW_KEY_RIGHT_SHIFT){close();return true;}return super.keyPressed(k,s,m);}
-    private void close(){if(client!=null)client.setScreen(null);}
+    @Override public boolean mouseClicked(double mx,double my,int b){if(b!=0)return super.mouseClicked(mx,my,b);int w=Math.min(820,width-32),h=Math.min(500,height-28),x=(width-w)/2,y=(height-h)/2,sx=x+30,sy=y+86,sw=178;for(int i=0;i<PAGES.length;i++)if(hit(mx,my,sx,sy+i*48,sw,40)){page=i;return true;}int cx=x+248,cy=y+91,cw=w-278;for(int i=0;i<rows().length;i++)if(hit(mx,my,cx,cy+52+i*54,cw,46)){toggle(i);return true;}if(!hit(mx,my,x,y,w,h)){closeMenu();return true;}return true;}
+    @Override public boolean keyPressed(int k,int s,int m){if(k==GLFW.GLFW_KEY_ESCAPE||k==GLFW.GLFW_KEY_RIGHT_SHIFT){closeMenu();return true;}return super.keyPressed(k,s,m);}
+    private void closeMenu(){if(client!=null)client.setScreen(null);}
     private void txt(DrawContext c,String s,int x,int y,int col){c.drawTextWithShadow(textRenderer,Text.literal(s),x,y,col);}
     private void muted(DrawContext c,String s,int x,int y){c.drawText(textRenderer,Text.literal(s),x,y,MUTED,false);}
     private static boolean hit(double mx,double my,int x,int y,int w,int h){return mx>=x&&mx<=x+w&&my>=y&&my<=y+h;}
