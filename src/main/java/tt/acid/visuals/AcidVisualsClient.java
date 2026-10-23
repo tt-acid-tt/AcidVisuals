@@ -8,11 +8,12 @@ public final class AcidVisualsClient implements ClientModInitializer {
     private boolean wasDown;
     @Override public void onInitializeClient() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            KillAuraController.tick(client);
             if (client.getWindow() == null) return;
             boolean down = GLFW.glfwGetKey(client.getWindow().getHandle(), GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
             if (down && !wasDown) {
-                if (client.currentScreen instanceof AcidVisualsStudioScreen) client.setScreen(null);
-                else if (client.currentScreen == null) client.setScreen(new AcidVisualsStudioScreen());
+                if (client.currentScreen instanceof KillAuraScreen) client.setScreen(null);
+                else if (client.currentScreen == null) client.setScreen(new KillAuraScreen());
             }
             wasDown = down;
         });
