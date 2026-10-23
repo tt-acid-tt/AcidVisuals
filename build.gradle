@@ -53,8 +53,8 @@ tasks.register("generateGodArt") {
             g.setColor(new java.awt.Color(165,184,200)); g.fill(new java.awt.geom.Ellipse2D.Double(12,12,104,104))
         }
         make(new File(gui,"toggle_on.png"),256,128) { g,img,w,h ->
-            g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(55,225,255),w,h,new java.awt.Color(56,130,255))); g.fill(rr.call(3,3,w-6,h-6,100)
-            g.setColor(new java.awt.Color(165,245,255,220)); g.setStroke(new java.awt.BasicStroke(4)); g.draw(rr.call(3,3,w-6,h-6,100)
+            g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(55,225,255),w,h,new java.awt.Color(56,130,255))); g.fill(rr.call(3,3,w-6,h-6,100))
+            g.setColor(new java.awt.Color(165,245,255,220)); g.setStroke(new java.awt.BasicStroke(4)); g.draw(rr.call(3,3,w-6,h-6,100))
             g.setPaint(new java.awt.RadialGradientPaint(196,64,70,new float[]{0f,1f},new java.awt.Color[]{new java.awt.Color(255,255,255,240),new java.awt.Color(205,248,255,230)})); g.fill(new java.awt.geom.Ellipse2D.Double(140,12,104,104))
         }
         make(new File(gui,"slider_track.png"),1024,96) { g,img,w,h ->
