@@ -63,7 +63,7 @@ tasks.register("generateGodArt") {
         }
         make(new File(gui,"slider_thumb.png"),128,128) { g,img,w,h ->
             g.setPaint(new java.awt.RadialGradientPaint(64,64,62,new float[]{0f,.75f,1f},new java.awt.Color[]{new java.awt.Color(225,255,255),new java.awt.Color(79,216,255),new java.awt.Color(37,102,205)})); g.fill(new java.awt.geom.Ellipse2D.Double(4,4,120,120))
-            g.setColor(new java.awt.Color(255,255,255,200)); g.setStroke(new java.awt.BasicStroke(3)); g.draw(new java.awt.geom.Ellipse2D.Double(5,5,118,118)
+            g.setColor(new java.awt.Color(255,255,255,200)); g.setStroke(new java.awt.BasicStroke(3)); g.draw(new java.awt.geom.Ellipse2D.Double(5,5,118,118))
         }
         make(new File(gui,"orb.png"),256,256) { g,img,w,h ->
             g.setPaint(new java.awt.RadialGradientPaint(128,128,124,new float[]{0f,.35f,.7f,1f},new java.awt.Color[]{new java.awt.Color(255,255,255,255),new java.awt.Color(109,245,255,230),new java.awt.Color(36,152,255,90),new java.awt.Color(36,152,255,0)})); g.fillOval(0,0,w,h)
