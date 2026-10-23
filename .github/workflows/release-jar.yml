@@ -1,49 +1,32 @@
 name: Build downloadable JAR
-
 on:
   workflow_dispatch:
   push:
     branches: [ main ]
-
 permissions:
   contents: write
-
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '9.2.1'
-
-      - name: Build Fabric mod
-        run: gradle --no-daemon build
-
-      - name: Select mod JAR (exclude sources JAR)
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: "8.12" }
+      - run: gradle --no-daemon build
+      - name: Prepare JAR
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release
-          JAR="$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' | head -n 1)"
+          JAR="$(find build/libs -maxdepth 1 -type f -name "*.jar" ! -name "*-sources.jar" ! -name "*-javadoc.jar" | head -n 1)"
           test -n "$JAR"
-          cp "$JAR" release/AcidVisuals-1.21.11.jar
-          test -f release/AcidVisuals-1.21.11.jar
-
-      - name: Publish direct JAR download
-        uses: softprops/action-gh-release@v2
+          cp "$JAR" release/AcidVisuals-1.21.4.jar
+      - uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: AcidVisuals build ${{ github.run_number }}
+          name: AcidVisuals 1.21.4 build ${{ github.run_number }}
           target_commitish: ${{ github.sha }}
-          files: release/AcidVisuals-1.21.11.jar
+          files: release/AcidVisuals-1.21.4.jar
           make_latest: false
