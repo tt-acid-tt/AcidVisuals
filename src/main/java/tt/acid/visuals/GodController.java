@@ -12,13 +12,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
-import org.lwjgl.glfw.GLFW;
 
 public final class GodController {
     private static int tick;
-    private static boolean laserWasDown;
-    private static boolean telekinesisWasDown;
-    private static boolean lanternWasDown;
     private static boolean jumpWasDown;
     private static boolean wetWasDown;
     private GodController() {}
@@ -27,8 +23,6 @@ public final class GodController {
         if (client.player == null || client.world == null || client.getWindow() == null) return;
         tick++;
         var player = client.player;
-        long window = client.getWindow().getHandle();
-
         if (GodSettings.flight) {
             player.getAbilities().allowFlying = true;
             player.getAbilities().flying = true;
@@ -62,13 +56,6 @@ public final class GodController {
             }
         }
 
-        boolean laserDown = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_G) == GLFW.GLFW_PRESS;
-        if (GodSettings.eyeLaser && laserDown && !laserWasDown) fireLaser(client);
-        laserWasDown = laserDown;
-
-        boolean telekinesisDown = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_H) == GLFW.GLFW_PRESS;
-        if (telekinesisDown && !telekinesisWasDown) GodSettings.telekinesis = !GodSettings.telekinesis;
-        telekinesisWasDown = telekinesisDown;
         if (GodSettings.telekinesis && client.crosshairTarget instanceof EntityHitResult hit
                 && hit.getEntity() instanceof LivingEntity target && target != player && tick % 2 == 0) {
             Vec3d hold = player.getCameraPosVec(1.0f).add(player.getRotationVec(1.0f).multiply(3.5));
@@ -79,10 +66,6 @@ public final class GodController {
             target.velocityModified = true;
             client.world.addParticle(ParticleTypes.END_ROD, target.getX(), target.getY() + target.getHeight() * .5, target.getZ(), 0, .025, 0);
         }
-
-        boolean lanternDown = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_B) == GLFW.GLFW_PRESS;
-        if (lanternDown && !lanternWasDown) GodSettings.homeLantern = !GodSettings.homeLantern;
-        lanternWasDown = lanternDown;
 
         boolean jumpDown = player.isOnGround() && player.getVelocity().y > 0.05;
         if (GodSettings.jumpCircle && jumpDown && !jumpWasDown) {
@@ -106,7 +89,7 @@ public final class GodController {
         }
     }
 
-    private static void fireLaser(MinecraftClient client) {
+    public static void fireLaser(MinecraftClient client) {
         var player = client.player;
         var world = client.world;
         if (player == null || world == null) return;
