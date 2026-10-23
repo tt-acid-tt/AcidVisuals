@@ -1,4 +1,4 @@
-name: Build downloadable JAR
+name: Build downloadable God of the World JAR
 on:
   workflow_dispatch:
   push:
@@ -20,13 +20,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release
-          JAR="$(find build/libs -maxdepth 1 -type f -name "*.jar" ! -name "*-sources.jar" ! -name "*-javadoc.jar" | head -n 1)"
+          JAR="$(find build/libs -maxdepth 1 -type f -name "GodOfTheWorld-*.jar" ! -name "*-sources.jar" ! -name "*-javadoc.jar" | head -n 1)"
           test -n "$JAR"
-          cp "$JAR" release/AcidVisuals-1.21.4.jar
+          cp "$JAR" release/GodOfTheWorld-1.21.4.jar
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: build-${{ github.run_number }}
-          name: AcidVisuals 1.21.4 build ${{ github.run_number }}
+          tag_name: god-world-build-${{ github.run_number }}
+          name: God of the World 1.21.4 build ${{ github.run_number }}
           target_commitish: ${{ github.sha }}
-          files: release/AcidVisuals-1.21.4.jar
+          files: release/GodOfTheWorld-1.21.4.jar
           make_latest: false
