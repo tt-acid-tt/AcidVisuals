@@ -8,10 +8,7 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
-/**
- * Conservative client-side combat helper. It uses normal Minecraft interaction
- * and cooldown mechanics; it does not send custom packets or bypass server checks.
- */
+/** Client-side combat helper using normal Minecraft interaction and cooldown mechanics. */
 public final class KillAuraController {
     private static int ticksUntilNextAttack;
 
@@ -24,11 +21,8 @@ public final class KillAuraController {
             return;
         }
 
-        if (ticksUntilNextAttack > 0) {
-            ticksUntilNextAttack--;
-        }
+        if (ticksUntilNextAttack > 0) ticksUntilNextAttack--;
 
-        // Keep the configured distance within a conservative vanilla-like range.
         double range = MathHelper.clamp(KillAuraSettings.range, 1.0f, 3.0f);
         double bestDistance = range * range;
         LivingEntity target = null;
@@ -36,11 +30,8 @@ public final class KillAuraController {
         for (Entity entity : client.world.getEntities()) {
             if (!(entity instanceof LivingEntity living) || living == client.player
                     || living instanceof ArmorStandEntity || !living.isAlive() || living.isRemoved()
-                    || living.isSpectator() || living.isInvisible()) {
-                continue;
-            }
+                    || living.isSpectator() || living.isInvisible()) continue;
 
-            // Measure from the player's eyes to the target's bounding-box center.
             Vec3d targetPoint = living.getBoundingBox().getCenter();
             double distance = client.player.getEyePos().squaredDistanceTo(targetPoint);
             if (distance <= bestDistance) {
@@ -49,10 +40,7 @@ public final class KillAuraController {
             }
         }
 
-        if (target == null) {
-            return;
-        }
-
+        if (target == null) return;
         aimAtSmoothly(client, target);
 
         float requiredCharge = MathHelper.clamp(KillAuraSettings.damageCharge / 100.0f, 0.1f, 1.0f);
@@ -68,22 +56,21 @@ public final class KillAuraController {
     private static void aimAtSmoothly(MinecraftClient client, LivingEntity target) {
         Vec3d from = client.player.getEyePos();
         Vec3d to = target.getBoundingBox().getCenter();
-        double dx = to.x - from.x;
-        double dy = to.y - from.y;
-        double dz = to.z - from.z;
+        double dx = to.x - from.x, dy = to.y - from.y, dz = to.z - from.z;
         double horizontal = Math.sqrt(dx * dx + dz * dz);
 
         float targetYaw = (float) (MathHelper.atan2(dz, dx) * (180.0 / Math.PI)) - 90.0f;
         float targetPitch = (float) -(MathHelper.atan2(dy, horizontal) * (180.0 / Math.PI));
 
-        // Limit rotation change per tick to avoid instant snaps.
-        float maxTurnPerTick = 18.0f;
+        int speed = MathHelper.clamp(KillAuraSettings.aimSpeed, 1, 10);
+        float smoothing = 0.055f + speed * 0.022f;
+        float maxTurnPerTick = 1.0f + speed * 1.15f;
         float yawDelta = MathHelper.wrapDegrees(targetYaw - client.player.getYaw());
         float pitchDelta = targetPitch - client.player.getPitch();
-        client.player.setYaw(client.player.getYaw()
-                + MathHelper.clamp(yawDelta, -maxTurnPerTick, maxTurnPerTick));
-        client.player.setPitch(MathHelper.clamp(
-                client.player.getPitch() + MathHelper.clamp(pitchDelta, -maxTurnPerTick, maxTurnPerTick),
-                -90.0f, 90.0f));
+
+        float yawStep = MathHelper.clamp(yawDelta * smoothing, -maxTurnPerTick, maxTurnPerTick);
+        float pitchStep = MathHelper.clamp(pitchDelta * smoothing, -maxTurnPerTick, maxTurnPerTick);
+        client.player.setYaw(client.player.getYaw() + yawStep);
+        client.player.setPitch(MathHelper.clamp(client.player.getPitch() + pitchStep, -90.0f, 90.0f));
     }
 }
