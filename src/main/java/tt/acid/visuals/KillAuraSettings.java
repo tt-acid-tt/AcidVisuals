@@ -8,4 +8,6 @@ public final class KillAuraSettings {
     public static volatile int attacksPerSecond = 2;
     /** Minimum vanilla attack cooldown charge, in percent, required before attacking. */
     public static volatile int damageCharge = 90;
+    /** Camera turn speed setting from 1 (slow) to 10 (fast). */
+    public static volatile int aimSpeed = 3;
 }
