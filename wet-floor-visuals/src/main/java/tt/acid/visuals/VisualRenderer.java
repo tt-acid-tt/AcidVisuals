@@ -194,7 +194,7 @@ public final class VisualRenderer {
         WET_TILES.clear();
         var player = client.player;
         int chunks = client.options.getViewDistance().getValue();
-        int radius = Math.max(64, Math.min(144, chunks * 16));
+        int radius = Math.max(64, Math.min(304, chunks * 16 + 20));
         int radiusSq = radius * radius;
 
         // Cover the visible area rather than stopping at a small player-centered puddle.
@@ -476,7 +476,7 @@ public final class VisualRenderer {
         int subdivisions = distance < 22 ? 4 : (distance < 48 ? 2 : 1);
         double centerU = Math.atan2(centerZ - camera.z, centerX - camera.x) / (Math.PI * 2.0) + time * 0.00008;
         float waveStrength = VisualSettings.slider("reflection_wave");
-        double edgeStart = Math.max(0, Math.max(64, Math.min(144, MinecraftClient.getInstance().options.getViewDistance().getValue() * 16)) - 14);
+        double edgeStart = Math.max(0, Math.max(64, Math.min(304, MinecraftClient.getInstance().options.getViewDistance().getValue() * 16 + 20)) - 14);
         float edgeFade = (float)Math.max(0, Math.min(1, (edgeStart + 14 - distance) / 14.0));
         edgeFade = edgeFade * edgeFade * (3 - 2 * edgeFade);
 
@@ -613,8 +613,9 @@ public final class VisualRenderer {
         double x = du * 2.0;
         double y = v - centerV;
         double cos = Math.cos(angle), sin = Math.sin(angle);
-        double sampleU = 0.5 + (x * cos + y * sin) / (2.0 * pulse);
-        double sampleV = 0.48 + (-x * sin + y * cos) / pulse;
+        double objectScale = 0.34;
+        double sampleU = 0.5 + (x * cos + y * sin) / (2.0 * pulse * objectScale);
+        double sampleV = 0.48 + (-x * sin + y * cos) / (pulse * objectScale);
         sampleU -= Math.floor(sampleU);
         sampleV = clamp01(sampleV);
 
