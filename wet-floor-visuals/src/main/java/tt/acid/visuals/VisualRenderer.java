@@ -36,15 +36,17 @@ public final class VisualRenderer {
     private static final Identifier SELECTED = id("textures/gui/selected_slot");
     private static final Identifier JUMP_RING = id("textures/fx/jump_ring");
     private static final Identifier ORB = id("textures/fx/orb");
-    private static final Identifier PUDDLE = id("textures/fx/puddle");
+    private static final Identifier WET_SURFACE = id("textures/fx/wet_surface");
     private static final Identifier SKY = id("textures/environment/sky_overlay");
     private static final Identifier FONT = id("acid");
     private static final List<Ring> RINGS = new ArrayList<>();
     private static final List<GlowParticle> PARTICLES = new ArrayList<>();
-    private static final List<Puddle> PUDDLES = new ArrayList<>();
+    private static final List<WetTile> WET_TILES = new ArrayList<>();
+    private static final List<RainDrop> RAIN_DROPS = new ArrayList<>();
+    private static final List<Ripple> RIPPLES = new ArrayList<>();
     private static final Random RANDOM = new Random();
     private static boolean wasGrounded = true;
-    private static long lastPuddleScan = -1000;
+    private static long lastSurfaceScan = -1000;
     private static float smoothSlotX = Float.NaN;
     private static long clientTicks;
 
@@ -59,7 +61,9 @@ public final class VisualRenderer {
         if (client.player == null || client.world == null) {
             RINGS.clear();
             PARTICLES.clear();
-            PUDDLES.clear();
+            WET_TILES.clear();
+            RAIN_DROPS.clear();
+            RIPPLES.clear();
             wasGrounded = true;
             return;
         }
@@ -94,9 +98,16 @@ public final class VisualRenderer {
                     && living.squaredDistanceTo(player) < 24*24) spawnAround(living, 2);
         }
 
-        if (VisualSettings.get("wet_floor") && client.world.getTime() - lastPuddleScan > 60) {
-            scanPuddles(client);
-            lastPuddleScan = client.world.getTime();
+        if (VisualSettings.get("wet_floor")) {
+            if (client.world.getTime() - lastSurfaceScan > 40) {
+                scanWetTiles(client);
+                lastSurfaceScan = client.world.getTime();
+            }
+            tickRain(client);
+        } else {
+            WET_TILES.clear();
+            RAIN_DROPS.clear();
+            RIPPLES.clear();
         }
     }
 
@@ -111,22 +122,68 @@ public final class VisualRenderer {
         }
     }
 
-    private static void scanPuddles(MinecraftClient client) {
-        PUDDLES.clear();
-        var player=client.player;
-        int radius=Math.round(VisualSettings.slider("puddle_radius"));
-        for(int dx=-radius;dx<=radius;dx++){
-            for(int dz=-radius;dz<=radius;dz++){
-                if(dx*dx+dz*dz>radius*radius || RANDOM.nextFloat()>0.16f) continue;
-                BlockPos top=client.world.getTopPosition(Heightmap.Type.MOTION_BLOCKING,new BlockPos(player.getBlockX()+dx,player.getBlockY(),player.getBlockZ()+dz));
-                if(Math.abs(top.getY()-player.getY())>3.4) continue;
-                BlockPos floor=top.down();
-                BlockState state=client.world.getBlockState(floor);
-                if(state.isOpaqueFullCube() && client.world.getBlockState(top).isAir()){
-                    PUDDLES.add(new Puddle(top.getX()+0.5,top.getY()+0.018,top.getZ()+0.5,RANDOM.nextInt(120)));
-                    if(PUDDLES.size()>=42)return;
-                }
+    private static void scanWetTiles(MinecraftClient client) {
+        WET_TILES.clear();
+        var player = client.player;
+        int radius = Math.round(VisualSettings.slider("puddle_radius"));
+        int radiusSq = radius * radius;
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                if (dx * dx + dz * dz > radiusSq) continue;
+                BlockPos column = new BlockPos(player.getBlockX() + dx, player.getBlockY(), player.getBlockZ() + dz);
+                BlockPos top = client.world.getTopPosition(Heightmap.Type.MOTION_BLOCKING, column);
+                if (Math.abs(top.getY() - player.getY()) > 9.0) continue;
+                BlockPos floor = top.down();
+                BlockState state = client.world.getBlockState(floor);
+                if (!state.isOpaqueFullCube() || !client.world.getBlockState(top).isAir()) continue;
+
+                int stableTurn = Math.floorMod(top.getX() * 73428767 + top.getZ() * 912931, 4);
+                WET_TILES.add(new WetTile(top.getX() + 0.5, top.getY() + 0.012, top.getZ() + 0.5, stableTurn));
+                if (WET_TILES.size() >= 380) return;
             }
+        }
+    }
+
+    private static void tickRain(MinecraftClient client) {
+        boolean raining = client.world.isRaining();
+        if (raining && clientTicks % 2 == 0 && RAIN_DROPS.size() < 90) {
+            var player = client.player;
+            int radius = Math.max(3, Math.min(8, Math.round(VisualSettings.slider("puddle_radius"))));
+            int spawnCount = 1 + RANDOM.nextInt(2);
+            for (int i = 0; i < spawnCount && RAIN_DROPS.size() < 90; i++) {
+                double x = player.getX() + (RANDOM.nextDouble() * 2.0 - 1.0) * radius;
+                double z = player.getZ() + (RANDOM.nextDouble() * 2.0 - 1.0) * radius;
+                BlockPos column = new BlockPos(net.minecraft.util.math.MathHelper.floor(x), player.getBlockY(), net.minecraft.util.math.MathHelper.floor(z));
+                BlockPos top = client.world.getTopPosition(Heightmap.Type.MOTION_BLOCKING, column);
+                if (Math.abs(top.getY() - player.getY()) > 11.0) continue;
+                if (!client.world.getBlockState(top.down()).isOpaqueFullCube() || !client.world.getBlockState(top).isAir()) continue;
+                double targetY = top.getY() + 0.024;
+                double startY = Math.max(player.getY() + 3.0, targetY + 3.0 + RANDOM.nextDouble() * 5.5);
+                RAIN_DROPS.add(new RainDrop(x, startY, z, targetY, 0.24 + RANDOM.nextDouble() * 0.12));
+            }
+        }
+
+        Iterator<RainDrop> drops = RAIN_DROPS.iterator();
+        while (drops.hasNext()) {
+            RainDrop drop = drops.next();
+            drop.y -= drop.speed;
+            drop.age++;
+            if (drop.y <= drop.targetY) {
+                if (VisualSettings.get("rain_ripples")) {
+                    RIPPLES.add(new Ripple(drop.x, drop.targetY, drop.z, RANDOM.nextInt(360)));
+                    if (RIPPLES.size() > 100) RIPPLES.remove(0);
+                }
+                drops.remove();
+            } else if (drop.age > 70 || drop.y - drop.targetY > 14.0) {
+                drops.remove();
+            }
+        }
+
+        Iterator<Ripple> ripples = RIPPLES.iterator();
+        while (ripples.hasNext()) {
+            Ripple ripple = ripples.next();
+            ripple.age++;
+            if (ripple.age >= 18) ripples.remove();
         }
     }
 
@@ -191,42 +248,41 @@ public final class VisualRenderer {
             }
         }
 
-        if (VisualSettings.get("wet_floor") && !PUDDLES.isEmpty()) {
+        if (VisualSettings.get("wet_floor") && !WET_TILES.isEmpty()) {
             float intensity = VisualSettings.slider("wet_intensity");
-            long time = client.world.getTime();
-            int alpha = (int) ((VisualSettings.get("soft_lighting") ? 65 : 40)
-                + intensity * (VisualSettings.get("soft_lighting") ? 165 : 120));
-
-            // Puddle textures are one render-layer pass; ripples are a second, separate pass.
-            VertexConsumer surface = consumers.getBuffer(RenderLayer.getEntityTranslucent(PUDDLE));
+            VertexConsumer surface = consumers.getBuffer(RenderLayer.getEntityTranslucent(WET_SURFACE));
             int index = 0;
-            for (Puddle puddle : PUDDLES) {
-                float size = 0.42f + (index % 4) * 0.085f;
-                drawHorizontalTexture(surface, matrix, puddle.x - camera.x, puddle.y - camera.y,
-                    puddle.z - camera.z, size, size * 0.68f, alpha);
+            for (WetTile tile : WET_TILES) {
+                int alpha = 178 + (int) (intensity * 65) + (tile.turn % 2) * 8;
+                drawWetTile(surface, matrix, tile.x - camera.x, tile.y - camera.y,
+                    tile.z - camera.z, alpha, tile.turn);
                 index++;
             }
+        }
 
-            VertexConsumer waveLines = consumers.getBuffer(RenderLayer.getLines());
-            index = 0;
-            for (Puddle puddle : PUDDLES) {
-                float size = 0.42f + (index % 4) * 0.085f;
-                if (VisualSettings.get("rain_ripples") && client.world.isRaining()) {
-                    float phase = ((time + puddle.seed) % 24) / 24.0f;
-                    float radius = 0.08f + phase * size * 0.82f;
-                    int waveAlpha = (int) (175 * (1 - phase) * intensity);
-                    drawRing(waveLines, matrix, puddle.x - camera.x, puddle.y - camera.y + 0.007,
-                        puddle.z - camera.z, radius, ar, ag, ab, waveAlpha, 28);
-                    if (phase > 0.45f) {
-                        drawRing(waveLines, matrix, puddle.x - camera.x, puddle.y - camera.y + 0.009,
-                            puddle.z - camera.z, radius * 0.54f, 220, 246, 255,
-                            (int) (75 * (1 - phase)), 24);
-                    }
-                } else if (index % 3 == 0) {
-                    drawRing(waveLines, matrix, puddle.x - camera.x, puddle.y - camera.y + 0.006,
-                        puddle.z - camera.z, size * 0.43, 205, 242, 255, (int) (70 * intensity), 30);
+        // The texture pass is complete before requesting line buffers; no consumer is reused across layers.
+        if (VisualSettings.get("wet_floor") && (!RAIN_DROPS.isEmpty() || !RIPPLES.isEmpty())) {
+            VertexConsumer wetLines = consumers.getBuffer(RenderLayer.getLines());
+            for (RainDrop drop : RAIN_DROPS) {
+                double rx = drop.x - camera.x;
+                double ry = drop.y - camera.y;
+                double rz = drop.z - camera.z;
+                segment(wetLines, matrix, rx, ry, rz, rx - 0.012, ry - 0.17, rz - 0.012,
+                    194, 232, 255, 190);
+            }
+            float intensity = VisualSettings.slider("wet_intensity");
+            for (Ripple ripple : RIPPLES) {
+                float progress = ripple.age / 18.0f;
+                double rx = ripple.x - camera.x;
+                double ry = ripple.y - camera.y + 0.017;
+                double rz = ripple.z - camera.z;
+                float radius = 0.035f + progress * 0.22f;
+                int alpha = (int) (185 * (1.0f - progress) * intensity);
+                drawRing(wetLines, matrix, rx, ry, rz, radius, 204, 240, 255, alpha, 20);
+                if (progress > 0.38f) {
+                    drawRing(wetLines, matrix, rx, ry + 0.002, rz, radius * 0.58f,
+                        240, 250, 255, (int) (80 * (1.0f - progress)), 16);
                 }
-                index++;
             }
         }
 
@@ -302,6 +358,72 @@ public final class VisualRenderer {
         out.vertex(matrix,(float)(x+rx),(float)y,(float)(z-rz)).color(255,255,255,alpha).texture(1,0).overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(0,1,0);
     }
 
+    private static void drawWetTile(VertexConsumer out, Matrix4f matrix, double x, double y, double z, int alpha, int rotation) {
+        double x0 = x - 0.5, x1 = x + 0.5, z0 = z - 0.5, z1 = z + 0.5;
+        float[][] uv = switch (rotation & 3) {
+            case 1 -> new float[][]{{0,1},{1,1},{1,0},{0,0}};
+            case 2 -> new float[][]{{1,1},{1,0},{0,0},{0,1}};
+            case 3 -> new float[][]{{1,0},{0,0},{0,1},{1,1}};
+            default -> new float[][]{{0,0},{0,1},{1,1},{1,0}};
+        };
+        double[][] p = {{x0,y,z0},{x0,y,z1},{x1,y,z1},{x1,y,z0}};
+        for (int i = 0; i < 4; i++) {
+            out.vertex(matrix, (float)p[i][0], (float)p[i][1], (float)p[i][2])
+                .color(255,255,255,alpha).texture(uv[i][0],uv[i][1])
+                .overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(0,1,0);
+        }
+    }
+
+    public static void renderSkyAtmosphere(WorldRenderContext context) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (!VisualSettings.get("sky_overlay") || client.world == null || context.matrixStack() == null || context.consumers() == null) return;
+
+        MatrixStack matrices = context.matrixStack();
+        matrices.push();
+        MatrixStack.Entry entry = matrices.peek();
+        Matrix4f matrix = entry.getPositionMatrix();
+        VertexConsumer out = context.consumers().getBuffer(RenderLayer.getEntityTranslucent(SKY));
+        final int latitudeSteps = 24;
+        final int longitudeSteps = 64;
+        final float radius = 480.0f;
+
+        for (int lat = 0; lat < latitudeSteps; lat++) {
+            float v0 = lat / (float) latitudeSteps;
+            float v1 = (lat + 1) / (float) latitudeSteps;
+            float theta0 = (float) (Math.PI * v0);
+            float theta1 = (float) (Math.PI * v1);
+            for (int lon = 0; lon < longitudeSteps; lon++) {
+                float u0 = lon / (float) longitudeSteps;
+                float u1 = (lon + 1) / (float) longitudeSteps;
+                float phi0 = (float) (Math.PI * 2.0 * u0);
+                float phi1 = (float) (Math.PI * 2.0 * u1);
+
+                emitSkyVertex(out, entry, matrix, radius, theta0, phi0, u0, v0);
+                emitSkyVertex(out, entry, matrix, radius, theta1, phi0, u0, v1);
+                emitSkyVertex(out, entry, matrix, radius, theta1, phi1, u1, v1);
+                emitSkyVertex(out, entry, matrix, radius, theta0, phi1, u1, v0);
+
+                // Reverse faces as well: this remains visible with either culling convention.
+                emitSkyVertex(out, entry, matrix, radius, theta0, phi1, u1, v0);
+                emitSkyVertex(out, entry, matrix, radius, theta1, phi1, u1, v1);
+                emitSkyVertex(out, entry, matrix, radius, theta1, phi0, u0, v1);
+                emitSkyVertex(out, entry, matrix, radius, theta0, phi0, u0, v0);
+            }
+        }
+        matrices.pop();
+    }
+
+    private static void emitSkyVertex(VertexConsumer out, MatrixStack.Entry entry, Matrix4f matrix,
+                                      float radius, float theta, float phi, float u, float v) {
+        float sin = (float) Math.sin(theta);
+        float x = radius * sin * (float) Math.cos(phi);
+        float y = radius * (float) Math.cos(theta);
+        float z = radius * sin * (float) Math.sin(phi);
+        out.vertex(matrix, x, y, z).color(255,255,255,255).texture(u,v)
+            .overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE)
+            .normal(entry, -x/radius, -y/radius, -z/radius);
+    }
+
     private static void drawGlowBillboard(double x,double y,double z,float size,int r,int g,int b,int alpha,MatrixStack matrices,VertexConsumerProvider consumers,MinecraftClient client){
         matrices.push();
         matrices.translate(x,y,z);
@@ -329,21 +451,21 @@ public final class VisualRenderer {
 
         // This opaque base hides the vanilla hotbar art beneath our custom skin.
         context.fill(x, y, x + barW, y + barH, 0xFF081321);
-        context.drawTexture(RenderLayer::getGuiTextured, HOTBAR, x, y, 0, 0, barW, barH, 1024, 144);
+        context.drawTexture(RenderLayer::getGuiTextured, HOTBAR, x, y, 0, 0, barW, barH, 1456, 176);
 
-        // Compact rounded cards reveal only our glass bar through their transparent corners.
+        // Nine matte graphite slots, drawn square rather than stretching pill-shaped art.
         for (int i = 0; i < 9; i++) {
             int sx = x + 1 + i * 20;
-            context.drawTexture(RenderLayer::getGuiTextured, SLOT, sx, y + 1, 0, 0, 20, 20, 128, 128);
+            context.drawTexture(RenderLayer::getGuiTextured, SLOT, sx, y + 1, 0, 0, 20, 20, 256, 256);
         }
 
         int selected = client.player.getInventory().selectedSlot;
-        float target = x - 1 + selected * 20;
+        float target = x + 1 + selected * 20;
         if (Float.isNaN(smoothSlotX)) smoothSlotX = target;
         smoothSlotX += (target - smoothSlotX) * 0.32f;
         if (Math.abs(target - smoothSlotX) < 0.05f) smoothSlotX = target;
-        context.drawTexture(RenderLayer::getGuiTextured, SELECTED, Math.round(smoothSlotX), y - 1,
-            0, 0, 24, 24, 128, 128);
+        context.drawTexture(RenderLayer::getGuiTextured, SELECTED, Math.round(smoothSlotX), y + 1,
+            0, 0, 20, 20, 256, 256);
 
         // Align icons to vanilla's exact positions, avoiding duplicated/misaligned stacks.
         for (int i = 0; i < 9; i++) {
@@ -357,15 +479,7 @@ public final class VisualRenderer {
         }
     }
 
-    public static void renderSkyOverlay(DrawContext context) {
-        MinecraftClient client=MinecraftClient.getInstance();
-        if(!VisualSettings.get("sky_overlay")||client.player==null||client.world==null||client.currentScreen!=null)return;
-        int w=context.getScaledWindowWidth();
-        int h=Math.max(90,context.getScaledWindowHeight()/3);
-        context.drawTexture(RenderLayer::getGuiTextured,SKY,0,0,w,h,0,0,2048,1024);
-    }
-
-    private static final class Ring {
+    private static final class Ring {    private static final class Ring {
         final double x,y,z;
         int age;
         Ring(double x,double y,double z){this.x=x;this.y=y;this.z=z;}
@@ -377,9 +491,27 @@ public final class VisualRenderer {
             this.x=x;this.y=y;this.z=z;this.vx=vx;this.vy=vy;this.vz=vz;this.life=life;
         }
     }
-    private static final class Puddle {
-        final double x,y,z;
+    private static final class WetTile {
+        final double x, y, z;
+        final int turn;
+        WetTile(double x, double y, double z, int turn) {
+            this.x = x; this.y = y; this.z = z; this.turn = turn;
+        }
+    }
+    private static final class RainDrop {
+        final double x, z, targetY, speed;
+        double y;
+        int age;
+        RainDrop(double x, double y, double z, double targetY, double speed) {
+            this.x = x; this.y = y; this.z = z; this.targetY = targetY; this.speed = speed;
+        }
+    }
+    private static final class Ripple {
+        final double x, y, z;
         final int seed;
-        Puddle(double x,double y,double z,int seed){this.x=x;this.y=y;this.z=z;this.seed=seed;}
+        int age;
+        Ripple(double x, double y, double z, int seed) {
+            this.x = x; this.y = y; this.z = z; this.seed = seed;
+        }
     }
 }

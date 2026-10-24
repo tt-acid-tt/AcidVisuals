@@ -24,7 +24,7 @@ public final class VisualSettings {
         FLAGS.put("custom_hotbar", true);
         FLAGS.put("wet_floor", false);
         FLAGS.put("rain_ripples", true);
-        FLAGS.put("sky_overlay", false);
+        FLAGS.put("sky_overlay", true);
         FLAGS.put("soft_lighting", true);
         FLAGS.put("entity_boxes", false);
         FLAGS.put("player_names", true);

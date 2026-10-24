@@ -44,9 +44,19 @@ public final class VisualMenuScreen extends Screen {
     private int sliderOffsetRows() { return switch(activeTab) { case 0 -> 3; case 1 -> 4; case 2 -> 2; default -> 0; }; }
 
     @Override
+    protected void applyBlur() {
+        // This menu intentionally stays sharp; do not apply Minecraft's screen blur.
+    }
+
+    @Override
+    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
+        // The custom menu draws its own subtle dimmer below.
+    }
+
+    @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        context.fill(0, 0, width, height, 0xB7040912);
-        texture(context, PANEL, px(), py(), pw(), ph(), 1024, 768);
+        context.fill(0, 0, width, height, 0x42000000);
+        texture(context, PANEL, px(), py(), pw(), ph(), 1580, 960);
 
         context.drawTextWithShadow(textRenderer, fontText("ACIDVISUALS"), px()+28, py()+21, 0xFFF3FCFF);
         context.drawTextWithShadow(textRenderer, fontText("CLIENT VISUAL SUITE  /  FABRIC 1.21.4"), px()+30, py()+43, 0xFF91DDEB);
@@ -98,7 +108,7 @@ public final class VisualMenuScreen extends Screen {
     }
 
     private void renderWetPage(DrawContext c, int mx, int my) {
-        drawToggle(c, "wet_floor", "Wet Floor", "Блики, мокрая поверхность и водный оттенок", 0, mx, my);
+        drawToggle(c, "wet_floor", "Wet Floor", "Отражающий слой на верхних гранях блоков", 0, mx, my);
         drawToggle(c, "rain_ripples", "Капли и волны", "Кольца на лужах во время дождя", 1, mx, my);
         drawToggle(c, "sky_overlay", "Атмосфера неба", "Лёгкое высокодетальное небесное сияние", 2, mx, my);
         drawToggle(c, "soft_lighting", "Мягкие блики", "Более мягкие цветовые акценты", 3, mx, my);

@@ -13,12 +13,11 @@ public final class AcidVisualsClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         VisualSettings.load();
+        WorldRenderEvents.BEFORE_ENTITIES.register(VisualRenderer::renderSkyAtmosphere);
         WorldRenderEvents.AFTER_ENTITIES.register(VisualRenderer::renderWorld);
         HudLayerRegistrationCallback.EVENT.register(layers -> {
             layers.attachLayerAfter(IdentifiedLayer.HOTBAR_AND_BARS, Identifier.of("acidvisuals", "custom_hotbar"),
                 (context, tickCounter) -> VisualRenderer.renderHotbar(context));
-            layers.attachLayerAfter(IdentifiedLayer.MISC_OVERLAYS, Identifier.of("acidvisuals", "sky_atmosphere"),
-                (context, tickCounter) -> VisualRenderer.renderSkyOverlay(context));
         });
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
             VisualRenderer.tick(client);

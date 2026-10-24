@@ -42,24 +42,23 @@ tasks.register("generateAcidVisualsArt") {
         def rr = { x, y, w, h, r -> new java.awt.geom.RoundRectangle2D.Double(x.doubleValue(), y.doubleValue(), w.doubleValue(), h.doubleValue(), r.doubleValue(), r.doubleValue()) }
         def rng = new java.util.Random(240126L)
 
-        make("gui/panel.png", 1024, 768) { g, img, w, h ->
-            g.setPaint(new java.awt.GradientPaint(0, 0, new java.awt.Color(18, 25, 38, 246), w, h, new java.awt.Color(5, 10, 20, 238)))
-            g.fill(rr.call(4, 4, w-8, h-8, 74))
-            for (int i = 0; i < 28; i++) {
-                g.setColor(new java.awt.Color(77, 195, 224, Math.max(2, 25-i)))
-                g.setStroke(new java.awt.BasicStroke((float)(1.2 + i*0.10)))
-                g.draw(rr.call(8+i, 8+i, w-16-2*i, h-16-2*i, 70))
-            }
-            g.setColor(new java.awt.Color(114, 228, 255, 190))
-            g.setStroke(new java.awt.BasicStroke(3.0f))
-            g.draw(rr.call(5, 5, w-10, h-10, 68))
-            g.setPaint(new java.awt.GradientPaint(40, 24, new java.awt.Color(125, 244, 255, 115), (float)(w * 0.75), 80, new java.awt.Color(125, 244, 255, 0)))
-            g.fill(rr.call(28, 18, w-56, 8, 8))
-            for (int i = 0; i < 1800; i++) {
-                int x = rng.nextInt(w), y = rng.nextInt(h)
-                g.setColor(new java.awt.Color(210, 242, 255, rng.nextInt(13)))
-                g.fillRect(x, y, 2, 2)
-            }
+        make("gui/panel.png", 1580, 960) { g, img, w, h ->
+            g.setPaint(new java.awt.LinearGradientPaint(0f, 0f, 0f, (float)h,
+                [0f, 0.45f, 1f] as float[],
+                [new java.awt.Color(31, 37, 48, 252), new java.awt.Color(20, 25, 34, 250), new java.awt.Color(11, 15, 23, 248)] as java.awt.Color[]))
+            g.fill(rr.call(5, 5, w-10, h-10, 58))
+            g.setColor(new java.awt.Color(111, 124, 141, 225))
+            g.setStroke(new java.awt.BasicStroke(5f))
+            g.draw(rr.call(7, 7, w-14, h-14, 58))
+            g.setColor(new java.awt.Color(255, 255, 255, 38))
+            g.setStroke(new java.awt.BasicStroke(2f))
+            g.draw(rr.call(16, 16, w-32, h-32, 46))
+            g.setPaint(new java.awt.GradientPaint(50, 36, new java.awt.Color(255,255,255,34),
+                50, 205, new java.awt.Color(255,255,255,0)))
+            g.fill(rr.call(28, 19, w-56, 170, 32))
+            g.setColor(new java.awt.Color(255,255,255,13))
+            g.setStroke(new java.awt.BasicStroke(1.4f))
+            g.drawLine(74, 74, w-74, 74)
         }
 
         def buttonPainter = { boolean hover -> { g, img, w, h ->
@@ -91,22 +90,35 @@ tasks.register("generateAcidVisualsArt") {
             g.setPaint(new java.awt.RadialGradientPaint(196, 64, 60, new float[]{0f,1f}, new java.awt.Color[]{new java.awt.Color(255,255,255,255),new java.awt.Color(205,250,255,235)}))
             g.fill(new java.awt.geom.Ellipse2D.Double(142, 12, 104, 104))
         }
-        make("gui/slot.png", 128, 128) { g, img, w, h ->
-            g.setPaint(new java.awt.GradientPaint(0, 0, new java.awt.Color(26,43,60,252), 0, h, new java.awt.Color(9,17,30,248)))
-            g.fill(rr.call(4,4,w-8,h-8,22))
-            g.setColor(new java.awt.Color(121,190,212,165)); g.setStroke(new java.awt.BasicStroke(2f)); g.draw(rr.call(4,4,w-8,h-8,22))
-            g.setColor(new java.awt.Color(255,255,255,28)); g.setStroke(new java.awt.BasicStroke(1f)); g.drawLine(18,10,w-18,10)
+        make("gui/slot.png", 256, 256) { g, img, w, h ->
+            g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(54,60,68,255),0,h,new java.awt.Color(37,42,49,255)))
+            g.fill(rr.call(5,5,w-10,h-10,34))
+            g.setColor(new java.awt.Color(92,101,113,225))
+            g.setStroke(new java.awt.BasicStroke(8f))
+            g.draw(rr.call(5,5,w-10,h-10,34))
+            g.setColor(new java.awt.Color(255,255,255,28))
+            g.setStroke(new java.awt.BasicStroke(3f))
+            g.drawLine(37,16,w-37,16)
         }
-        make("gui/hotbar.png", 1024, 144) { g, img, w, h ->
-            g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(12,22,37,252),0,h,new java.awt.Color(5,10,20,248)))
-            g.fill(rr.call(4,4,w-8,h-8,62))
-            g.setColor(new java.awt.Color(104,224,250,220)); g.setStroke(new java.awt.BasicStroke(4f)); g.draw(rr.call(4,4,w-8,h-8,62))
-            g.setColor(new java.awt.Color(255,255,255,55)); g.setStroke(new java.awt.BasicStroke(2f)); g.drawLine(70,15,w-70,15)
+        make("gui/hotbar.png", 1456, 176) { g, img, w, h ->
+            g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(47,52,60,255),0,h,new java.awt.Color(28,32,39,255)))
+            g.fill(rr.call(5,5,w-10,h-10,44))
+            g.setColor(new java.awt.Color(88,96,107,245))
+            g.setStroke(new java.awt.BasicStroke(16f))
+            g.draw(rr.call(6,6,w-12,h-12,44))
+            g.setColor(new java.awt.Color(255,255,255,35))
+            g.setStroke(new java.awt.BasicStroke(4f))
+            g.drawLine(64,18,w-64,18)
         }
-        make("gui/selected_slot.png", 128, 128) { g, img, w, h ->
-            g.setColor(new java.awt.Color(69,217,255,70)); g.fill(rr.call(3,3,w-6,h-6,23))
-            g.setColor(new java.awt.Color(113,239,255,255)); g.setStroke(new java.awt.BasicStroke(4f)); g.draw(rr.call(4,4,w-8,h-8,22))
-            g.setColor(new java.awt.Color(255,255,255,220)); g.setStroke(new java.awt.BasicStroke(1.5f)); g.draw(rr.call(8,8,w-16,h-16,18))
+        make("gui/selected_slot.png", 256, 256) { g, img, w, h ->
+            g.setColor(new java.awt.Color(255,255,255,18))
+            g.fill(rr.call(7,7,w-14,h-14,36))
+            g.setColor(new java.awt.Color(255,255,255,255))
+            g.setStroke(new java.awt.BasicStroke(15f))
+            g.draw(rr.call(8,8,w-16,h-16,36))
+            g.setColor(new java.awt.Color(255,255,255,95))
+            g.setStroke(new java.awt.BasicStroke(4f))
+            g.draw(rr.call(23,23,w-46,h-46,24))
         }
 
         make("fx/jump_ring.png", 512, 512) { g, img, w, h ->
@@ -124,35 +136,70 @@ tasks.register("generateAcidVisualsArt") {
                 new java.awt.Color(54,206,255,170),new java.awt.Color(51,128,255,50),new java.awt.Color(40,80,255,0)}))
             g.fillOval(0,0,w,h)
         }
-        make("fx/puddle.png", 512, 384) { g, img, w, h ->
-            g.setPaint(new java.awt.RadialGradientPaint(256,192,245,new float[]{0f,.42f,.78f,1f},new java.awt.Color[]{
-                new java.awt.Color(133,230,255,115),new java.awt.Color(36,119,157,105),
-                new java.awt.Color(18,41,62,85),new java.awt.Color(9,20,34,0)}))
-            g.fill(new java.awt.geom.Ellipse2D.Double(5,30,502,324))
-            g.setColor(new java.awt.Color(235,252,255,105)); g.setStroke(new java.awt.BasicStroke(7f))
-            g.draw(new java.awt.geom.Arc2D.Double(55,64,402,240,200,110,java.awt.geom.Arc2D.OPEN))
-            g.setColor(new java.awt.Color(100,227,255,90)); g.setStroke(new java.awt.BasicStroke(4f))
-            for(int i=0;i<7;i++) g.draw(new java.awt.geom.Arc2D.Double(35+i*8,52+i*5,442-i*16,278-i*10,14,150,java.awt.geom.Arc2D.OPEN))
-            g.setPaint(new java.awt.GradientPaint(0,85,new java.awt.Color(255,255,255,95),0,205,new java.awt.Color(255,255,255,0)))
-            g.fill(new java.awt.geom.Ellipse2D.Double(42,65,428,130))
+        make("fx/wet_surface.png", 512, 512) { g, img, w, h ->
+            // A seamless square sheen tile: no oval or puddle silhouette.
+            g.setColor(new java.awt.Color(54, 116, 151, 54))
+            g.fillRect(0,0,w,h)
+            g.setPaint(new java.awt.LinearGradientPaint(0f,0f,(float)w,(float)h,
+                [0f,0.38f,0.62f,1f] as float[],
+                [new java.awt.Color(8,24,42,35),new java.awt.Color(100,177,213,82),
+                 new java.awt.Color(24,67,96,58),new java.awt.Color(14,35,52,42)] as java.awt.Color[]))
+            g.fillRect(0,0,w,h)
+            for (int i=0; i<5; i++) {
+                float yy = 44f + i*104f
+                g.setPaint(new java.awt.GradientPaint(0f,yy,new java.awt.Color(255,255,255,0),
+                    (float)w,yy+42f,new java.awt.Color(206,240,255,0)))
+                g.setColor(new java.awt.Color(209,242,255,Math.max(10,42-i*5)))
+                g.setStroke(new java.awt.BasicStroke(3f + (i%2)*2f, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND))
+                def reflection = new java.awt.geom.Path2D.Double()
+                reflection.moveTo(-24, yy+12)
+                reflection.curveTo(w*0.22, yy-14, w*0.47, yy+36, w*0.69, yy+4)
+                reflection.curveTo(w*0.82, yy-11, w*0.92, yy+19, w+24, yy+1)
+                g.draw(reflection)
+            }
+            g.setPaint(new java.awt.LinearGradientPaint(0f,0f,(float)w,0f,
+                [0f,0.28f,0.46f,0.62f,1f] as float[],
+                [new java.awt.Color(255,255,255,0),new java.awt.Color(225,247,255,22),
+                 new java.awt.Color(255,255,255,105),new java.awt.Color(168,225,255,25),
+                 new java.awt.Color(255,255,255,0)] as java.awt.Color[]))
+            g.fillRect(0,(int)(h*0.32),w,(int)(h*0.30))
+            g.setColor(new java.awt.Color(225,247,255,125))
+            g.setStroke(new java.awt.BasicStroke(2.2f))
+            g.drawLine(28,h/2,w-28,h/2)
         }
 
         make("environment/sky_overlay.png", 2048, 1024) { g, img, w, h ->
-            g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(14,31,67,28),0,h,new java.awt.Color(17,42,75,0)))
+            g.setPaint(new java.awt.LinearGradientPaint(0f,0f,0f,(float)h,
+                [0f,0.18f,0.38f,0.5f,0.67f,0.84f,1f] as float[],
+                [new java.awt.Color(7,18,44,255),new java.awt.Color(17,40,78,255),
+                 new java.awt.Color(36,91,139,255),new java.awt.Color(82,145,184,255),
+                 new java.awt.Color(122,177,204,255),new java.awt.Color(38,76,111,255),
+                 new java.awt.Color(8,20,46,255)] as java.awt.Color[]))
             g.fillRect(0,0,w,h)
-            for(int i=0;i<12;i++){
-                int x=i*190-120
-                g.setColor(new java.awt.Color(42+(i*9)%70, 190+(i*5)%60, 255, 11+(i%4)*4))
-                g.setStroke(new java.awt.BasicStroke((float)(40 + (i % 5) * 18)))
-                g.draw(new java.awt.geom.Arc2D.Double(x,-270,420,760,190,160,java.awt.geom.Arc2D.OPEN))
+            def skyRng = new java.util.Random(261024L)
+            for (int i=0; i<42; i++) {
+                int x = skyRng.nextInt(w)
+                int y = 75 + skyRng.nextInt((int)(h*0.28))
+                int size = 1 + skyRng.nextInt(3)
+                g.setColor(new java.awt.Color(220,240,255,70+skyRng.nextInt(120)))
+                g.fill(new java.awt.geom.Ellipse2D.Double(x,y,size,size))
             }
-            for(int i=0;i<550;i++){
-                int x=rng.nextInt(w),y=rng.nextInt(h.intdiv(2))
-                g.setColor(new java.awt.Color(210,241,255,20+rng.nextInt(28)))
-                g.fillOval(x,y,1+rng.nextInt(3),1+rng.nextInt(3))
+            for (int i=0; i<18; i++) {
+                int x = i*132 - 120
+                int y = (int)(h*0.48) + (i%4)*29
+                g.setPaint(new java.awt.LinearGradientPaint(0f,(float)y,0f,(float)(y+130),
+                    [0f,0.45f,1f] as float[],
+                    [new java.awt.Color(212,239,255,0),new java.awt.Color(191,228,246,42+(i%3)*9),new java.awt.Color(206,239,255,0)] as java.awt.Color[]))
+                g.setStroke(new java.awt.BasicStroke(36f+(i%5)*16f,java.awt.BasicStroke.CAP_ROUND,java.awt.BasicStroke.JOIN_ROUND))
+                g.draw(new java.awt.geom.Arc2D.Double(x,y-70,350,190,190,155,java.awt.geom.Arc2D.OPEN))
             }
-            g.setPaint(new java.awt.GradientPaint(0,(float)(h * 0.45),new java.awt.Color(10,30,70,13),0,h,new java.awt.Color(10,30,70,0)))
-            g.fillRect(0,(int)(h * 0.42),w,(int)(h * 0.58))
+            g.setColor(new java.awt.Color(221,241,255,42))
+            g.setStroke(new java.awt.BasicStroke(2.5f))
+            for (int i=0; i<22; i++) {
+                int x = skyRng.nextInt(w)
+                int y = (int)(h*0.54)+skyRng.nextInt((int)(h*0.12))
+                g.drawLine(x,y,x+35+skyRng.nextInt(90),y-2-skyRng.nextInt(8))
+            }
         }
 
         def glyphSet = new LinkedHashSet<Character>()
