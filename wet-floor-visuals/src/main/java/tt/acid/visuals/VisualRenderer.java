@@ -37,6 +37,8 @@ public final class VisualRenderer {
     private static final Identifier SELECTED = id("textures/gui/selected_slot");
     private static final Identifier JUMP_RING = id("textures/fx/jump_ring");
     private static final Identifier ORB = id("textures/fx/orb");
+    private static final Identifier HUD_CARD = id("textures/gui/button");
+    private static final Identifier BLACK_HOLE_OBJECT = id("textures/environment/object_blackhole");
     private static final Identifier[] SKY_TEXTURES = {
         id("textures/environment/sky_aurora"),
         id("textures/environment/sky_nebula"),
@@ -58,6 +60,9 @@ public final class VisualRenderer {
     private static long lastSurfaceScan = -1000;
     private static float smoothSlotX = Float.NaN;
     private static long clientTicks;
+    private static boolean surfaceScanRequested;
+    private static final float[] KEY_ANIMATION = new float[6];
+    private static final float[] KEY_TARGETS = new float[6];
     private static CloudRenderMode previousCloudMode;
     private static boolean forcedCloudsOff;
 
@@ -112,15 +117,39 @@ public final class VisualRenderer {
         }
 
         if (VisualSettings.get("wet_floor")) {
-            if (client.world.getTime() - lastSurfaceScan > 40) {
+            if (surfaceScanRequested || client.world.getTime() - lastSurfaceScan > 100) {
                 scanWetTiles(client);
                 lastSurfaceScan = client.world.getTime();
+                surfaceScanRequested = false;
             }
             tickRain(client);
         } else {
             WET_TILES.clear();
             RAIN_DROPS.clear();
             RIPPLES.clear();
+            surfaceScanRequested = false;
+        }
+        tickHudAnimations(client);
+    }
+
+    public static void requestSurfaceScan() {
+        surfaceScanRequested = true;
+    }
+
+    private static void tickHudAnimations(MinecraftClient client) {
+        if (client.player == null || client.options == null) return;
+        boolean[] pressed = {
+            client.options.forwardKey.isPressed(),
+            client.options.leftKey.isPressed(),
+            client.options.backKey.isPressed(),
+            client.options.rightKey.isPressed(),
+            client.options.attackKey.isPressed(),
+            client.options.useKey.isPressed()
+        };
+        for (int i = 0; i < KEY_ANIMATION.length; i++) {
+            KEY_TARGETS[i] = pressed[i] ? 1.0f : 0.0f;
+            KEY_ANIMATION[i] += (KEY_TARGETS[i] - KEY_ANIMATION[i]) * 0.24f;
+            if (Math.abs(KEY_TARGETS[i] - KEY_ANIMATION[i]) < 0.004f) KEY_ANIMATION[i] = KEY_TARGETS[i];
         }
     }
 
@@ -138,33 +167,27 @@ public final class VisualRenderer {
     private static void scanWetTiles(MinecraftClient client) {
         WET_TILES.clear();
         var player = client.player;
-        int radius = Math.round(VisualSettings.slider("puddle_radius"));
+        int chunks = client.options.getViewDistance().getValue();
+        int radius = Math.max(64, Math.min(144, chunks * 16));
         int radiusSq = radius * radius;
-        int minY = Math.max(client.world.getBottomY(), player.getBlockY() - 14);
-        int maxY = Math.min(client.world.getTopYInclusive(), player.getBlockY() + 9);
 
-        // Scan a broad cylinder of exposed full block tops instead of only the world heightmap.
-        // This also covers terraces and visible cave floors, not just the single highest block
-        // in each x/z column.
+        // Cover the visible area rather than stopping at a small player-centered puddle.
+        // One heightmap query per column avoids scanning every Y level and stays more practical.
+        // Plants/flowers above a solid block are permitted, so they no longer block reflections.
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
                 if (dx * dx + dz * dz > radiusSq) continue;
                 int worldX = player.getBlockX() + dx;
                 int worldZ = player.getBlockZ() + dz;
-                int surfacesInColumn = 0;
-                for (int y = maxY; y >= minY; y--) {
-                    BlockPos floor = new BlockPos(worldX, y, worldZ);
-                    BlockState state = client.world.getBlockState(floor);
-                    if (!state.isOpaqueFullCube() || !client.world.getBlockState(floor.up()).isAir()) continue;
+                BlockPos column = new BlockPos(worldX, player.getBlockY(), worldZ);
+                BlockPos top = client.world.getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, column);
+                BlockPos floor = top.down();
+                BlockState state = client.world.getBlockState(floor);
+                BlockState above = client.world.getBlockState(top);
+                if (!state.isOpaqueFullCube() || above.isOpaqueFullCube()) continue;
 
-                    int stableTurn = Math.floorMod(worldX * 73428767 + worldZ * 912931 + y * 31337, 8);
-                    WET_TILES.add(new WetTile(worldX + 0.5, y + 1.012, worldZ + 0.5, stableTurn));
-                    surfacesInColumn++;
-                    if (WET_TILES.size() >= 2200) return;
-                    // At most three open surfaces per column prevents stacked caves from
-                    // spending too much time in the reflection pass.
-                    if (surfacesInColumn >= 3) break;
-                }
+                int stableTurn = Math.floorMod(worldX * 73428767 + worldZ * 912931 + top.getY() * 31337, 8);
+                WET_TILES.add(new WetTile(worldX + 0.5, top.getY() + 0.012, worldZ + 0.5, stableTurn));
             }
         }
     }
@@ -304,7 +327,7 @@ public final class VisualRenderer {
             // reflected sky with wave distortion and a Fresnel-like edge response. No blue overlay.
             VertexConsumer reflection = consumers.getBuffer(VisualRenderLayers.translucentNoDepthWrite(reflectedSky));
             for (WetTile tile : WET_TILES) {
-                drawReflectionTile(reflection, matrix, tile.x, tile.y, tile.z, camera, intensity, time, ar, ag, ab);
+                drawReflectionTile(reflection, matrix, tile.x, tile.y, tile.z, camera, intensity, time + tickDelta, ar, ag, ab);
             }
         }
 
@@ -421,49 +444,64 @@ public final class VisualRenderer {
     }
 
     private static void drawReflectionTile(VertexConsumer out, Matrix4f matrix, double centerX, double worldY, double centerZ,
-                                           Vec3d camera, float intensity, long time, int ar, int ag, int ab) {
-        double[][] points = {
-            {centerX - 0.5, worldY, centerZ - 0.5},
-            {centerX - 0.5, worldY, centerZ + 0.5},
-            {centerX + 0.5, worldY, centerZ + 0.5},
-            {centerX + 0.5, worldY, centerZ - 0.5}
-        };
-        double phase = time * 0.00024;
-        double centerDx = centerX - camera.x;
-        double centerDz = centerZ - camera.z;
-        double centerU = Math.atan2(centerDz, centerDx) / (Math.PI * 2.0) + phase;
-        for (double[] point : points) {
-            double wx = point[0], wy = point[1], wz = point[2];
-            double dx = wx - camera.x;
-            double dy = wy - camera.y;
-            double dz = wz - camera.z;
-            double distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
-            if (distance < 0.001) continue;
+                                           Vec3d camera, float intensity, double time, int ar, int ag, int ab) {
+        double distance = Math.sqrt((centerX - camera.x) * (centerX - camera.x)
+            + (centerZ - camera.z) * (centerZ - camera.z));
+        int subdivisions = distance < 22 ? 4 : (distance < 48 ? 2 : 1);
+        double centerU = Math.atan2(centerZ - camera.z, centerX - camera.x) / (Math.PI * 2.0) + time * 0.00008;
+        float waveStrength = VisualSettings.slider("reflection_wave");
+        double edgeStart = Math.max(0, Math.max(64, Math.min(144, MinecraftClient.getInstance().options.getViewDistance().getValue() * 16)) - 14);
+        float edgeFade = (float)Math.max(0, Math.min(1, (edgeStart + 14 - distance) / 14.0));
+        edgeFade = edgeFade * edgeFade * (3 - 2 * edgeFade);
 
-            // Mirror the camera-to-floor ray over the horizontal plane normal.
-            double rx = dx / distance;
-            double ry = -dy / distance;
-            double rz = dz / distance;
-            double waveA = Math.sin(wx * 0.73 + wz * 0.37 + time * 0.075);
-            double waveB = Math.cos(wx * 0.29 - wz * 0.81 + time * 0.052);
-            double u = Math.atan2(rz, rx) / (Math.PI * 2.0) + phase + waveA * 0.006;
-            while (u - centerU > 0.5) u -= 1.0;
-            while (u - centerU < -0.5) u += 1.0;
-            double v = clamp01(Math.acos(Math.max(-1.0, Math.min(1.0, ry))) / Math.PI + waveB * 0.0045);
-
-            double viewCosine = Math.abs(dy) / distance;
-            float fresnel = (float)(0.16 + Math.pow(1.0 - clamp01(viewCosine), 3.4) * 0.84);
-            int alpha = (int)Math.max(42, Math.min(224, 28 + intensity * 48 + fresnel * (108 + intensity * 42)));
-            int tintR = 232 + ar * 23 / 255;
-            int tintG = 232 + ag * 23 / 255;
-            int tintB = 232 + ab * 23 / 255;
-            out.vertex(matrix, (float)(wx - camera.x), (float)(wy - camera.y), (float)(wz - camera.z))
-                .color(tintR, tintG, tintB, alpha).texture((float)u, (float)v)
-                .overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(0,1,0);
+        for (int iz = 0; iz < subdivisions; iz++) {
+            for (int ix = 0; ix < subdivisions; ix++) {
+                double x0 = centerX - 0.5 + ix / (double)subdivisions;
+                double x1 = centerX - 0.5 + (ix + 1) / (double)subdivisions;
+                double z0 = centerZ - 0.5 + iz / (double)subdivisions;
+                double z1 = centerZ - 0.5 + (iz + 1) / (double)subdivisions;
+                emitReflectionVertex(out, matrix, camera, x0, z0, worldY, centerU, time, intensity, waveStrength, edgeFade, ar, ag, ab);
+                emitReflectionVertex(out, matrix, camera, x0, z1, worldY, centerU, time, intensity, waveStrength, edgeFade, ar, ag, ab);
+                emitReflectionVertex(out, matrix, camera, x1, z1, worldY, centerU, time, intensity, waveStrength, edgeFade, ar, ag, ab);
+                emitReflectionVertex(out, matrix, camera, x1, z0, worldY, centerU, time, intensity, waveStrength, edgeFade, ar, ag, ab);
+            }
         }
     }
 
-    public static void renderSkyAtmosphere(WorldRenderContext context) {
+    private static void emitReflectionVertex(VertexConsumer out, Matrix4f matrix, Vec3d camera,
+                                             double wx, double wz, double baseY, double centerU, double time,
+                                             float intensity, float waveStrength, float edgeFade,
+                                             int ar, int ag, int ab) {
+        double waveA = Math.sin(wx * 0.73 + wz * 0.37 + time * 0.075);
+        double waveB = Math.cos(wx * 0.29 - wz * 0.81 + time * 0.052);
+        double crossWave = Math.sin((wx + wz) * 0.91 - time * 0.047);
+        double wy = baseY + (waveA * waveB * 0.0032 + crossWave * 0.0018) * waveStrength * intensity;
+        double dx = wx - camera.x;
+        double dy = wy - camera.y;
+        double dz = wz - camera.z;
+        double distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
+        if (distance < 0.001) return;
+
+        double rx = dx / distance;
+        double ry = -dy / distance;
+        double rz = dz / distance;
+        double u = Math.atan2(rz, rx) / (Math.PI * 2.0) + time * 0.00008 + waveA * 0.012 * waveStrength;
+        while (u - centerU > 0.5) u -= 1.0;
+        while (u - centerU < -0.5) u += 1.0;
+        double v = clamp01(Math.acos(Math.max(-1.0, Math.min(1.0, ry))) / Math.PI + (waveB + crossWave) * 0.006 * waveStrength);
+
+        double viewCosine = Math.abs(dy) / distance;
+        float fresnel = (float)(0.13 + Math.pow(1.0 - clamp01(viewCosine), 3.1) * 0.87);
+        int alpha = (int)Math.max(0, Math.min(224, (28 + intensity * 45 + fresnel * (112 + intensity * 38)) * edgeFade));
+        int tintR = 242 + ar * 13 / 255;
+        int tintG = 242 + ag * 13 / 255;
+        int tintB = 242 + ab * 13 / 255;
+        out.vertex(matrix, (float)(wx - camera.x), (float)(wy - camera.y), (float)(wz - camera.z))
+            .color(tintR, tintG, tintB, alpha).texture((float)u, (float)v)
+            .overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(0,1,0);
+    }
+
+        public static void renderSkyAtmosphere(WorldRenderContext context) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (!VisualSettings.get("sky_overlay") || client.world == null || context.matrixStack() == null || context.consumers() == null) return;
 
