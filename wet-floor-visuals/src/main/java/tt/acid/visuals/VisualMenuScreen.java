@@ -121,12 +121,12 @@ public final class VisualMenuScreen extends Screen {
     }
 
     private void renderWetPage(DrawContext c, int mx, int my) {
-        drawToggle(c, "wet_floor", "Wet Floor", "Отражающий слой на верхних гранях блоков", 0, mx, my);
+        drawToggle(c, "wet_floor", "Wet Floor", "Отражения панорамы на верхних гранях блоков", 0, mx, my);
         drawToggle(c, "rain_ripples", "Капли и волны", "Кольца на лужах во время дождя", 1, mx, my);
         drawToggle(c, "sky_overlay", "Атмосфера неба", "Лёгкое высокодетальное небесное сияние", 2, mx, my);
         drawToggle(c, "soft_lighting", "Мягкие блики", "Более мягкие цветовые акценты", 3, mx, my);
         drawSlider(c, "wet_intensity", "Интенсивность бликов", "Яркость мокрой поверхности", 0, mx, my);
-        drawSlider(c, "puddle_radius", "Радиус эффекта", "Дальность поиска поверхностей", 1, mx, my);
+        drawSlider(c, "puddle_radius", "Покрытие отражениями", "Радиус охвата 6–24 блоков вокруг игрока", 1, mx, my);
     }
 
     private void renderSkyPage(DrawContext c, int mx, int my) {
@@ -244,10 +244,10 @@ public final class VisualMenuScreen extends Screen {
     }
 
     private float sliderMin(String key) {
-        return switch(key){case "jump_size"->0.55f;case "particle_density"->0.1f;case "wet_intensity"->0.15f;case "puddle_radius"->3f;case "box_range"->8f;default->0f;};
+        return switch(key){case "jump_size"->0.55f;case "particle_density"->0.1f;case "wet_intensity"->0.15f;case "puddle_radius"->6f;case "box_range"->8f;default->0f;};
     }
     private float sliderMax(String key) {
-        return switch(key){case "jump_size"->2.8f;case "particle_density","wet_intensity"->1f;case "puddle_radius"->10f;case "box_range"->64f;default->1f;};
+        return switch(key){case "jump_size"->2.8f;case "particle_density","wet_intensity"->1f;case "puddle_radius"->24f;case "box_range"->64f;default->1f;};
     }
     private String sliderValue(String key,float v) {
         return switch(key){case "jump_size"->String.format(java.util.Locale.ROOT,"%.2f",v);case "particle_density","wet_intensity"->Math.round(v*100)+"%";default->String.format(java.util.Locale.ROOT,"%.0f",v);};
