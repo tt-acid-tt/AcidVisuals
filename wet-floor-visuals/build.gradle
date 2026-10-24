@@ -47,7 +47,7 @@ tasks.register("generateAcidVisualsArt") {
             g.fill(rr.call(4, 4, w-8, h-8, 74))
             for (int i = 0; i < 28; i++) {
                 g.setColor(new java.awt.Color(77, 195, 224, Math.max(2, 25-i)))
-                g.setStroke(new java.awt.BasicStroke(1.2f + i*0.10f))
+                g.setStroke(new java.awt.BasicStroke((float)(1.2 + i*0.10)))
                 g.draw(rr.call(8+i, 8+i, w-16-2*i, h-16-2*i, 70))
             }
             g.setColor(new java.awt.Color(114, 228, 255, 190))
@@ -142,7 +142,7 @@ tasks.register("generateAcidVisualsArt") {
             for(int i=0;i<12;i++){
                 int x=i*190-120
                 g.setColor(new java.awt.Color(42+(i*9)%70, 190+(i*5)%60, 255, 11+(i%4)*4))
-                g.setStroke(new java.awt.BasicStroke(40+i%5*18))
+                g.setStroke(new java.awt.BasicStroke((float)(40 + (i % 5) * 18)))
                 g.draw(new java.awt.geom.Arc2D.Double(x,-270,420,760,190,160,java.awt.geom.Arc2D.OPEN))
             }
             for(int i=0;i<550;i++){
