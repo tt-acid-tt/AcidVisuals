@@ -39,6 +39,7 @@ public final class VisualRenderer {
     private static final Identifier ORB = id("textures/fx/orb");
     private static final Identifier HUD_CARD = id("textures/gui/button");
     private static final Identifier BLACK_HOLE_OBJECT = id("textures/environment/object_blackhole");
+    private static final Identifier BLACK_HOLE_REFLECTIONS = id("textures/environment/sky_void_reflections");
     private static final Identifier[] SKY_TEXTURES = {
         id("textures/environment/sky_aurora"),
         id("textures/environment/sky_nebula"),
@@ -321,7 +322,7 @@ public final class VisualRenderer {
         if (VisualSettings.get("wet_floor") && !WET_TILES.isEmpty()) {
             float intensity = VisualSettings.slider("wet_intensity");
             long time = client.world.getTime();
-            Identifier reflectedSky = SKY_TEXTURES[VisualSettings.skyStyle()];
+            Identifier reflectedSky = VisualSettings.skyStyle() == 4 ? BLACK_HOLE_REFLECTIONS : SKY_TEXTURES[VisualSettings.skyStyle()];
 
             // The large bundled panorama is the only wet-floor texture: each face samples the
             // reflected sky with wave distortion and a Fresnel-like edge response. No blue overlay.
@@ -515,7 +516,8 @@ public final class VisualRenderer {
         final int longitudeSteps = 64;
         final float radius = 460.0f;
         long time = client.world.getTime();
-        double phase = time * 0.00024;
+        double phase = time * 0.000035;
+        double animationTime = time + context.tickCounter().getTickDelta(false);
         int accent = VisualSettings.accent();
         int ar = (accent >> 16) & 255, ag = (accent >> 8) & 255, ab = accent & 255;
 
@@ -542,7 +544,63 @@ public final class VisualRenderer {
                 emitSkyVertex(out, entry, matrix, radius, theta0, phi0, u0, v0, ar, ag, ab, time);
             }
         }
+
+        // The black hole is rendered as a separate transparent panorama layer. Its accretion
+        // disk spins and its position drifts independently from the background panorama.
+        if (VisualSettings.skyStyle() == 4) {
+            VertexConsumer object = context.consumers().getBuffer(VisualRenderLayers.translucentNoDepthWrite(BLACK_HOLE_OBJECT));
+            double angle = animationTime * 0.018;
+            double shiftU = Math.sin(animationTime * 0.0027) * 0.014;
+            double shiftV = Math.sin(animationTime * 0.0019) * 0.006;
+            double pulse = 1.0 + Math.sin(animationTime * 0.009) * 0.018;
+            for (int lat = 0; lat < latitudeSteps; lat++) {
+                float v0 = lat / (float) latitudeSteps;
+                float v1 = (lat + 1) / (float) latitudeSteps;
+                float theta0 = (float)(Math.PI * v0);
+                float theta1 = (float)(Math.PI * v1);
+                for (int lon = 0; lon < longitudeSteps; lon++) {
+                    float u0 = (float)(lon / (double)longitudeSteps);
+                    float u1 = (float)((lon + 1) / (double)longitudeSteps);
+                    float phi0 = (float)(Math.PI * 2.0 * (lon / (double)longitudeSteps));
+                    float phi1 = (float)(Math.PI * 2.0 * ((lon + 1) / (double)longitudeSteps));
+                    emitSkyObjectVertex(object, entry, matrix, radius, theta0, phi0, u0, v0, angle, shiftU, shiftV, pulse);
+                    emitSkyObjectVertex(object, entry, matrix, radius, theta1, phi0, u0, v1, angle, shiftU, shiftV, pulse);
+                    emitSkyObjectVertex(object, entry, matrix, radius, theta1, phi1, u1, v1, angle, shiftU, shiftV, pulse);
+                    emitSkyObjectVertex(object, entry, matrix, radius, theta0, phi1, u1, v0, angle, shiftU, shiftV, pulse);
+                    emitSkyObjectVertex(object, entry, matrix, radius, theta0, phi1, u1, v0, angle, shiftU, shiftV, pulse);
+                    emitSkyObjectVertex(object, entry, matrix, radius, theta1, phi1, u1, v1, angle, shiftU, shiftV, pulse);
+                    emitSkyObjectVertex(object, entry, matrix, radius, theta1, phi0, u0, v1, angle, shiftU, shiftV, pulse);
+                    emitSkyObjectVertex(object, entry, matrix, radius, theta0, phi0, u0, v0, angle, shiftU, shiftV, pulse);
+                }
+            }
+        }
         matrices.pop();
+    }
+
+    private static void emitSkyObjectVertex(VertexConsumer out, MatrixStack.Entry entry, Matrix4f matrix,
+                                             float radius, float theta, float phi, float u, float v,
+                                             double angle, double shiftU, double shiftV, double pulse) {
+        double centerU = 0.5 + shiftU;
+        double centerV = 0.48 + shiftV;
+        double du = u - centerU;
+        while (du > 0.5) du -= 1.0;
+        while (du < -0.5) du += 1.0;
+        double x = du * 2.0;
+        double y = v - centerV;
+        double cos = Math.cos(angle), sin = Math.sin(angle);
+        double sampleU = centerU + (x * cos + y * sin) / (2.0 * pulse);
+        double sampleV = centerV + (-x * sin + y * cos) / pulse;
+        sampleU -= Math.floor(sampleU);
+        sampleV = clamp01(sampleV);
+
+        float sphereSin = (float)Math.sin(theta);
+        float xPos = radius * sphereSin * (float)Math.cos(phi);
+        float yPos = radius * (float)Math.cos(theta);
+        float zPos = radius * sphereSin * (float)Math.sin(phi);
+        out.vertex(matrix, xPos, yPos, zPos).color(255,255,255,255)
+            .texture((float)sampleU,(float)sampleV).overlay(OverlayTexture.DEFAULT_UV)
+            .light(LightmapTextureManager.MAX_LIGHT_COORDINATE)
+            .normal(entry, -xPos/radius, -yPos/radius, -zPos/radius);
     }
 
     private static void emitSkyVertex(VertexConsumer out, MatrixStack.Entry entry, Matrix4f matrix,
