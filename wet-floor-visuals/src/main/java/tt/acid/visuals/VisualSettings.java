@@ -17,6 +17,7 @@ public final class VisualSettings {
     private static final Map<String, Float> SLIDERS = new LinkedHashMap<>();
     private static final int[] COLORS = {0xFF67E7FF, 0xFFAA94FF, 0xFFFFA5D8, 0xFFFFD27C, 0xFFFFFFFF};
     private static int accentIndex = 0;
+    private static int skyStyle = 0;
 
     static {
         FLAGS.put("jump_circle", true);
@@ -61,10 +62,13 @@ public final class VisualSettings {
     public static int colorCount() { return COLORS.length; }
     public static int colorAt(int index) { return COLORS[Math.max(0, Math.min(COLORS.length - 1, index))]; }
     public static void setAccentIndex(int index) { accentIndex = Math.max(0, Math.min(COLORS.length - 1, index)); save(); }
+    public static int skyStyle() { return Math.max(0, Math.min(3, skyStyle)); }
+    public static void setSkyStyle(int style) { skyStyle = Math.max(0, Math.min(3, style)); save(); }
 
     public static void applyPreset(int preset) {
         switch (preset) {
             case 0 -> {
+                skyStyle = 0;
                 FLAGS.put("wet_floor", false); FLAGS.put("rain_ripples", true); FLAGS.put("jump_circle", true);
                 FLAGS.put("ambient_particles", false); FLAGS.put("custom_hotbar", true); FLAGS.put("sky_overlay", false);
                 FLAGS.put("soft_lighting", true); FLAGS.put("entity_boxes", false); FLAGS.put("player_names", true);
@@ -72,6 +76,7 @@ public final class VisualSettings {
                 SLIDERS.put("wet_intensity", 0.55f); SLIDERS.put("puddle_radius", 5.0f); accentIndex = 0;
             }
             case 1 -> {
+                skyStyle = 2;
                 FLAGS.put("wet_floor", true); FLAGS.put("rain_ripples", true); FLAGS.put("jump_circle", true);
                 FLAGS.put("ambient_particles", true); FLAGS.put("custom_hotbar", true); FLAGS.put("sky_overlay", true);
                 FLAGS.put("soft_lighting", true); FLAGS.put("entity_boxes", false); FLAGS.put("player_names", true);
@@ -79,6 +84,7 @@ public final class VisualSettings {
                 SLIDERS.put("wet_intensity", 0.95f); SLIDERS.put("puddle_radius", 8.0f); accentIndex = 0;
             }
             case 2 -> {
+                skyStyle = 1;
                 FLAGS.put("wet_floor", true); FLAGS.put("rain_ripples", false); FLAGS.put("jump_circle", false);
                 FLAGS.put("ambient_particles", true); FLAGS.put("custom_hotbar", true); FLAGS.put("sky_overlay", true);
                 FLAGS.put("soft_lighting", true); FLAGS.put("entity_boxes", true); FLAGS.put("player_names", true);
@@ -103,6 +109,7 @@ public final class VisualSettings {
                 for (String key : SLIDERS.keySet()) if (object.has(key)) SLIDERS.put(key, object.get(key).getAsFloat());
             }
             if (root.has("accent")) accentIndex = Math.max(0, Math.min(COLORS.length - 1, root.get("accent").getAsInt()));
+            if (root.has("skyStyle")) skyStyle = Math.max(0, Math.min(3, root.get("skyStyle").getAsInt()));
         } catch (Exception ignored) { }
     }
 
@@ -116,7 +123,7 @@ public final class VisualSettings {
             FLAGS.forEach((key, value) -> flags.addProperty(key, value));
             JsonObject sliders = new JsonObject();
             SLIDERS.forEach((key, value) -> sliders.addProperty(key, value));
-            root.add("flags", flags); root.add("sliders", sliders); root.addProperty("accent", accentIndex);
+            root.add("flags", flags); root.add("sliders", sliders); root.addProperty("accent", accentIndex); root.addProperty("skyStyle", skyStyle);
             Files.writeString(file.toPath(), GSON.toJson(root));
         } catch (Exception ignored) { }
     }

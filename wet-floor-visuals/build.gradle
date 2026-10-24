@@ -63,10 +63,10 @@ tasks.register("generateAcidVisualsArt") {
 
         def buttonPainter = { boolean hover -> { g, img, w, h ->
             g.setPaint(new java.awt.GradientPaint(0, 0,
-                hover ? new java.awt.Color(41, 91, 112, 248) : new java.awt.Color(28, 43, 61, 241),
-                0, h, hover ? new java.awt.Color(21, 53, 73, 248) : new java.awt.Color(13, 23, 38, 241)))
+                hover ? new java.awt.Color(54, 61, 71, 250) : new java.awt.Color(35, 41, 50, 245),
+                0, h, hover ? new java.awt.Color(35, 41, 50, 250) : new java.awt.Color(20, 25, 33, 245)))
             g.fill(rr.call(3, 3, w-6, h-6, 42))
-            g.setColor(hover ? new java.awt.Color(132, 239, 255, 230) : new java.awt.Color(105, 158, 182, 140))
+            g.setColor(hover ? new java.awt.Color(185, 196, 209, 225) : new java.awt.Color(99, 111, 126, 155))
             g.setStroke(new java.awt.BasicStroke(3f))
             g.draw(rr.call(3, 3, w-6, h-6, 42))
             g.setColor(new java.awt.Color(255, 255, 255, 30))
@@ -166,39 +166,106 @@ tasks.register("generateAcidVisualsArt") {
             g.drawLine(28,h.intdiv(2),w-28,h.intdiv(2))
         }
 
-        make("environment/sky_overlay.png", 2048, 1024) { g, img, w, h ->
-            g.setPaint(new java.awt.LinearGradientPaint(0f,0f,0f,(float)h,
-                [0f,0.18f,0.38f,0.5f,0.67f,0.84f,1f] as float[],
-                [new java.awt.Color(7,18,44,255),new java.awt.Color(17,40,78,255),
-                 new java.awt.Color(36,91,139,255),new java.awt.Color(82,145,184,255),
-                 new java.awt.Color(122,177,204,255),new java.awt.Color(38,76,111,255),
-                 new java.awt.Color(8,20,46,255)] as java.awt.Color[]))
-            g.fillRect(0,0,w,h)
-            def skyRng = new java.util.Random(261024L)
-            for (int i=0; i<42; i++) {
-                int x = skyRng.nextInt(w)
-                int y = 75 + skyRng.nextInt((int)(h*0.28))
-                int size = 1 + skyRng.nextInt(3)
-                g.setColor(new java.awt.Color(220,240,255,70+skyRng.nextInt(120)))
-                g.fill(new java.awt.geom.Ellipse2D.Double(x,y,size,size))
-            }
-            for (int i=0; i<18; i++) {
-                int x = i*132 - 120
-                int y = (int)(h*0.48) + (i%4)*29
-                g.setPaint(new java.awt.LinearGradientPaint(0f,(float)y,0f,(float)(y+130),
-                    [0f,0.45f,1f] as float[],
-                    [new java.awt.Color(212,239,255,0),new java.awt.Color(191,228,246,42+(i%3)*9),new java.awt.Color(206,239,255,0)] as java.awt.Color[]))
-                g.setStroke(new java.awt.BasicStroke((float)(36+(i%5)*16),java.awt.BasicStroke.CAP_ROUND,java.awt.BasicStroke.JOIN_ROUND))
-                g.draw(new java.awt.geom.Arc2D.Double(x,y-70,350,190,190,155,java.awt.geom.Arc2D.OPEN))
-            }
-            g.setColor(new java.awt.Color(221,241,255,42))
-            g.setStroke(new java.awt.BasicStroke(2.5f))
-            for (int i=0; i<22; i++) {
-                int x = skyRng.nextInt(w)
-                int y = (int)(h*0.54)+skyRng.nextInt((int)(h*0.12))
-                g.drawLine(x,y,x+35+skyRng.nextInt(90),y-2-skyRng.nextInt(8))
+        def skyPainter = { int style ->
+            return { g, img, w, h ->
+                float[] stops = [0f, 0.18f, 0.38f, 0.55f, 0.76f, 1f] as float[]
+                java.awt.Color[] colors
+                if (style == 0) {
+                    colors = [new java.awt.Color(5,12,39,255), new java.awt.Color(22,28,76,255),
+                        new java.awt.Color(28,76,116,255), new java.awt.Color(26,94,117,255),
+                        new java.awt.Color(28,34,76,255), new java.awt.Color(5,10,30,255)] as java.awt.Color[]
+                } else if (style == 1) {
+                    colors = [new java.awt.Color(7,8,34,255), new java.awt.Color(36,16,84,255),
+                        new java.awt.Color(73,30,117,255), new java.awt.Color(91,36,105,255),
+                        new java.awt.Color(30,24,72,255), new java.awt.Color(6,9,34,255)] as java.awt.Color[]
+                } else if (style == 2) {
+                    colors = [new java.awt.Color(13,17,55,255), new java.awt.Color(63,35,98,255),
+                        new java.awt.Color(162,68,117,255), new java.awt.Color(235,118,112,255),
+                        new java.awt.Color(238,167,111,255), new java.awt.Color(30,31,71,255)] as java.awt.Color[]
+                } else {
+                    colors = [new java.awt.Color(3,18,47,255), new java.awt.Color(12,46,86,255),
+                        new java.awt.Color(18,87,125,255), new java.awt.Color(48,139,164,255),
+                        new java.awt.Color(29,61,110,255), new java.awt.Color(4,15,43,255)] as java.awt.Color[]
+                }
+                g.setPaint(new java.awt.LinearGradientPaint(0f,0f,0f,(float)h,stops,colors))
+                g.fillRect(0,0,w,h)
+
+                def skyRng = new java.util.Random(261024L + style * 2917L)
+                // Volumetric-looking nebula and aurora clouds, drawn as softly feathered vector gradients.
+                for (int i=0; i<54; i++) {
+                    float cx = (float)(skyRng.nextInt(w + 300) - 150)
+                    float cy = (float)(95 + skyRng.nextInt((int)(h * 0.70)))
+                    float radius = (float)(90 + skyRng.nextInt(245))
+                    java.awt.Color glow
+                    if (style == 0) glow = new java.awt.Color(i % 2 == 0 ? 62 : 40, i % 2 == 0 ? 229 : 122, 234, 48)
+                    else if (style == 1) glow = new java.awt.Color(i % 2 == 0 ? 163 : 78, i % 2 == 0 ? 88 : 68, 255, 50)
+                    else if (style == 2) glow = new java.awt.Color(i % 2 == 0 ? 255 : 217, i % 2 == 0 ? 136 : 87, 144, 42)
+                    else glow = new java.awt.Color(i % 2 == 0 ? 72 : 105, i % 2 == 0 ? 225 : 140, 255, 49)
+                    g.setPaint(new java.awt.RadialGradientPaint(cx,cy,radius,
+                        [0f,0.34f,0.72f,1f] as float[],
+                        [glow, new java.awt.Color(glow.getRed(),glow.getGreen(),glow.getBlue(),24),
+                         new java.awt.Color(glow.getRed(),glow.getGreen(),glow.getBlue(),7),
+                         new java.awt.Color(glow.getRed(),glow.getGreen(),glow.getBlue(),0)] as java.awt.Color[]))
+                    g.fill(new java.awt.geom.Ellipse2D.Float(cx-radius,cy-radius,radius*2,radius*2))
+                }
+
+                // Long, layered light ribbons give the panorama a liquid, shifting-shader aesthetic.
+                for (int i=0; i<34; i++) {
+                    float y = (float)(h * (0.24 + (i % 13) * 0.043) + (skyRng.nextDouble() - 0.5) * 70)
+                    float wave = (float)(35 + skyRng.nextDouble() * 115)
+                    java.awt.geom.Path2D.Double ribbon = new java.awt.geom.Path2D.Double()
+                    ribbon.moveTo(-90, y)
+                    ribbon.curveTo(w*0.17, y-wave, w*0.29, y+wave*1.15, w*0.48, y-wave*0.12)
+                    ribbon.curveTo(w*0.65, y-wave*0.8, w*0.79, y+wave*0.9, w+90, y-wave*0.22)
+                    if (style == 0) g.setColor(new java.awt.Color(i%2==0?106:62, i%2==0?246:188, 255, 14+skyRng.nextInt(28)))
+                    else if (style == 1) g.setColor(new java.awt.Color(i%2==0?210:122, 120, 255, 13+skyRng.nextInt(27)))
+                    else if (style == 2) g.setColor(new java.awt.Color(255, i%2==0?184:117, 180, 12+skyRng.nextInt(24)))
+                    else g.setColor(new java.awt.Color(126, i%2==0?250:180, 255, 14+skyRng.nextInt(26)))
+                    g.setStroke(new java.awt.BasicStroke((float)(6 + skyRng.nextDouble()*34),
+                        java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND))
+                    g.draw(ribbon)
+                }
+
+                if (style == 2) {
+                    float sx = w * 0.71f, sy = h * 0.53f, sr = h * 0.22f
+                    g.setPaint(new java.awt.RadialGradientPaint(sx,sy,sr,
+                        [0f,0.28f,0.6f,1f] as float[],
+                        [new java.awt.Color(255,241,209,250), new java.awt.Color(255,178,170,170),
+                         new java.awt.Color(255,130,164,60), new java.awt.Color(255,130,164,0)] as java.awt.Color[]))
+                    g.fill(new java.awt.geom.Ellipse2D.Float(sx-sr,sy-sr,sr*2,sr*2))
+                }
+
+                // Crisp stars at multiple sizes over a softened high-resolution sky.
+                int stars = style == 2 ? 170 : 430
+                for (int i=0; i<stars; i++) {
+                    int x = skyRng.nextInt(w)
+                    int y = skyRng.nextInt((int)(h * 0.69))
+                    int size = skyRng.nextInt(100) < 8 ? 3 : (skyRng.nextInt(100) < 22 ? 2 : 1)
+                    int alpha = 60 + skyRng.nextInt(175)
+                    g.setColor(new java.awt.Color(218 + skyRng.nextInt(38), 226 + skyRng.nextInt(30), 255, alpha))
+                    g.fill(new java.awt.geom.Ellipse2D.Double(x,y,size,size))
+                    if (size == 3 && i % 7 == 0) {
+                        g.setStroke(new java.awt.BasicStroke(1.1f))
+                        g.drawLine(x-3,y,x+4,y)
+                        g.drawLine(x,y-3,x,y+4)
+                    }
+                }
+
+                // Fine reflective cloud streaks across the horizon.
+                for (int i=0; i<24; i++) {
+                    int x = skyRng.nextInt(w)
+                    int y = (int)(h * (0.56 + skyRng.nextDouble() * 0.25))
+                    g.setColor(new java.awt.Color(219,239,255,12+skyRng.nextInt(25)))
+                    g.setStroke(new java.awt.BasicStroke((float)(2 + skyRng.nextDouble()*9),
+                        java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND))
+                    g.drawLine(x,y,x+70+skyRng.nextInt(200),y-skyRng.nextInt(17))
+                }
             }
         }
+        make("environment/sky_aurora.png", 2048, 1024, skyPainter(0))
+        make("environment/sky_nebula.png", 2048, 1024, skyPainter(1))
+        make("environment/sky_sunset.png", 2048, 1024, skyPainter(2))
+        make("environment/sky_dream.png", 2048, 1024, skyPainter(3))
 
         def glyphSet = new LinkedHashSet<Character>()
         for (int cp=32; cp<=126; cp++) glyphSet.add((char)cp)

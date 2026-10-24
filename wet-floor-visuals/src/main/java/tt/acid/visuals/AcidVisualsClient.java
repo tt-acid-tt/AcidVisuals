@@ -13,8 +13,11 @@ public final class AcidVisualsClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         VisualSettings.load();
-        WorldRenderEvents.BEFORE_ENTITIES.register(VisualRenderer::renderSkyAtmosphere);
-        WorldRenderEvents.AFTER_ENTITIES.register(VisualRenderer::renderWorld);
+        // The matrix stack and shared consumers are available after entities in 1.21.4.
+        WorldRenderEvents.AFTER_ENTITIES.register(context -> {
+            VisualRenderer.renderSkyAtmosphere(context);
+            VisualRenderer.renderWorld(context);
+        });
         HudLayerRegistrationCallback.EVENT.register(layers -> {
             layers.attachLayerAfter(IdentifiedLayer.HOTBAR_AND_BARS, Identifier.of("acidvisuals", "custom_hotbar"),
                 (context, tickCounter) -> VisualRenderer.renderHotbar(context));

@@ -14,7 +14,9 @@ public final class VisualMenuScreen extends Screen {
     private static final Identifier TOGGLE_ON = id("gui/toggle_on");
     private static final Identifier TOGGLE_OFF = id("gui/toggle_off");
     private static final Identifier FONT = Identifier.of("acidvisuals", "acid");
-    private static final String[] TABS = {"Визуал", "Wet Floor", "HUD и мир", "Конфиги"};
+    private static final String[] TABS = {"Визуал", "Wet Floor", "Небо", "HUD и мир", "Конфиги"};
+    private static final String[] SKY_NAMES = {"AURORA / ПОЛЯРНОЕ СИЯНИЕ", "NEBULA / ТУМАННОСТЬ", "SUNSET / НЕОНОВЫЙ ЗАКАТ", "DREAM / КРИСТАЛЬНЫЙ СУМРАК"};
+    private static final String[] SKY_DESCRIPTIONS = {"Бирюзовые и фиолетовые ленты, звёзды", "Объёмные облака и многослойное сияние", "Тёплый горизонт и яркие блики", "Холодные переливы и глубокий космос"};
     private int activeTab;
     private String draggingSlider;
 
@@ -34,6 +36,11 @@ public final class VisualMenuScreen extends Screen {
         // Draw the complete source texture into the destination rectangle. The 10-argument
         // overload treats destination width/height as source-region size and clips high-res art.
         context.drawTexture(RenderLayer::getGuiTextured, texture, x, y, 0, 0, w, h, tw, th, tw, th);
+        if (texture.equals(BUTTON_HOVER)) {
+            int accent = VisualSettings.accent();
+            context.fill(x + 3, y + 3, x + w - 3, y + h - 3, (0x20 << 24) | (accent & 0x00FFFFFF));
+            context.drawBorder(x, y, w, h, accent);
+        }
     }
 
     private int px() { return (width - Math.min(790, width - 24)) / 2; }
@@ -43,7 +50,7 @@ public final class VisualMenuScreen extends Screen {
     private int contentX() { return px() + 216; }
     private int contentW() { return pw() - 240; }
     private int contentY() { return py() + 82; }
-    private int sliderOffsetRows() { return switch(activeTab) { case 0 -> 3; case 1 -> 4; case 2 -> 2; default -> 0; }; }
+    private int sliderOffsetRows() { return switch(activeTab) { case 0 -> 3; case 1 -> 4; case 3 -> 2; default -> 0; }; }
 
     @Override
     protected void applyBlur() {
@@ -73,25 +80,27 @@ public final class VisualMenuScreen extends Screen {
         }
 
         for (int i=0; i<TABS.length; i++) {
-            int x=px()+21, y=py()+80+i*47;
-            boolean hover=mouseX>=x&&mouseX<=x+174&&mouseY>=y&&mouseY<=y+38;
-            texture(context, i==activeTab || hover ? BUTTON_HOVER : BUTTON, x, y, 174, 38, 512, 128);
-            context.drawTextWithShadow(textRenderer, fontText(TABS[i]), x+16, y+13,
+            int x=px()+21, y=py()+78+i*41;
+            boolean hover=mouseX>=x&&mouseX<=x+174&&mouseY>=y&&mouseY<=y+34;
+            texture(context, i==activeTab || hover ? BUTTON_HOVER : BUTTON, x, y, 174, 34, 512, 128);
+            context.drawTextWithShadow(textRenderer, fontText(TABS[i]), x+16, y+11,
                 i==activeTab ? VisualSettings.accent() : 0xFFE0EDF5);
         }
 
-        context.fill(px()+204, py()+75, px()+206, py()+ph()-25, 0x507AC7DB);
+        context.fill(px()+204, py()+75, px()+206, py()+ph()-25, (0x50 << 24) | (VisualSettings.accent() & 0x00FFFFFF));
         context.drawTextWithShadow(textRenderer, fontText(switch (activeTab) {
             case 0 -> "ВИЗУАЛЬНЫЕ ЭФФЕКТЫ";
-            case 1 -> "МОКРЫЕ ПОВЕРХНОСТИ";
-            case 2 -> "СУЩНОСТИ И ИНТЕРФЕЙС";
+            case 1 -> "ОТРАЖАЮЩИЕ ПОВЕРХНОСТИ";
+            case 2 -> "ВЫБОР И АНИМАЦИЯ НЕБА";
+            case 3 -> "СУЩНОСТИ И ИНТЕРФЕЙС";
             default -> "ГОТОВЫЕ ПРОФИЛИ";
         }), contentX(), py()+61, 0xFFF0FAFF);
 
         switch (activeTab) {
             case 0 -> renderVisualPage(context, mouseX, mouseY);
             case 1 -> renderWetPage(context, mouseX, mouseY);
-            case 2 -> renderHudPage(context, mouseX, mouseY);
+            case 2 -> renderSkyPage(context, mouseX, mouseY);
+            case 3 -> renderHudPage(context, mouseX, mouseY);
             default -> renderPresets(context, mouseX, mouseY);
         }
 
@@ -116,6 +125,24 @@ public final class VisualMenuScreen extends Screen {
         drawToggle(c, "soft_lighting", "Мягкие блики", "Более мягкие цветовые акценты", 3, mx, my);
         drawSlider(c, "wet_intensity", "Интенсивность бликов", "Яркость мокрой поверхности", 0, mx, my);
         drawSlider(c, "puddle_radius", "Радиус эффекта", "Дальность поиска поверхностей", 1, mx, my);
+    }
+
+    private void renderSkyPage(DrawContext c, int mx, int my) {
+        drawToggle(c, "sky_overlay", "Собственное небо", "Переливающаяся панорама вместо ванильного неба", 0, mx, my);
+        int x = contentX(), w = contentW();
+        for (int i = 0; i < SKY_NAMES.length; i++) {
+            int y = contentY() + 66 + i * 64;
+            boolean selected = VisualSettings.skyStyle() == i;
+            boolean hover = mx >= x && mx <= x + w && my >= y && my <= y + 55;
+            texture(c, selected || hover ? BUTTON_HOVER : BUTTON, x, y, w, 55, 512, 128);
+            c.drawTextWithShadow(textRenderer, fontText(SKY_NAMES[i]), x + 16, y + 10,
+                selected ? VisualSettings.accent() : 0xFFF0F7FF);
+            c.drawTextWithShadow(textRenderer, fontText(SKY_DESCRIPTIONS[i]), x + 16, y + 31, 0xFFB7C5D2);
+            c.drawTextWithShadow(textRenderer, fontText(selected ? "ВЫБРАНО  ✓" : "ВЫБРАТЬ  →"),
+                x + w - 100, y + 19, selected ? VisualSettings.accent() : 0xFF9DB0C0);
+        }
+        c.drawTextWithShadow(textRenderer, fontText("Текстуры 2048×1024 встроены в JAR; переливы анимируются в мире"),
+            x + 2, contentY() + 337, 0xFF9FB4C4);
     }
 
     private void renderHudPage(DrawContext c, int mx, int my) {
@@ -146,8 +173,15 @@ public final class VisualMenuScreen extends Screen {
         texture(c, hover?BUTTON_HOVER:BUTTON, x,y,w,54,512,128);
         c.drawTextWithShadow(textRenderer,fontText(title),x+16,y+11,0xFFF3FAFF);
         c.drawTextWithShadow(textRenderer,fontText(desc),x+16,y+32,0xFFA5BFCE);
-        texture(c,value?TOGGLE_ON:TOGGLE_OFF,x+w-65,y+10,52,30,256,128);
-        c.drawTextWithShadow(textRenderer,fontText(value?"ON":"OFF"),x+w-104,y+20,value?VisualSettings.accent():0xFF8294A3);
+        int sx = x + w - 62, sy = y + 13;
+        int accent = VisualSettings.accent();
+        int trackColor = value ? accent : 0xFF303944;
+        c.fill(sx, sy, sx + 52, sy + 27, trackColor);
+        c.drawBorder(sx, sy, 52, 27, value ? accent : 0xFF697887);
+        int knobX = value ? sx + 29 : sx + 3;
+        c.fill(knobX, sy + 3, knobX + 20, sy + 24, 0xFFF3F7FA);
+        c.drawBorder(knobX, sy + 3, 20, 21, 0xFFCED8E0);
+        c.drawTextWithShadow(textRenderer,fontText(value?"ON":"OFF"),x+w-104,y+20,value?accent:0xFF8294A3);
     }
 
     private void drawSlider(DrawContext c, String key, String title, String desc, int row, int mx, int my) {
@@ -178,8 +212,9 @@ public final class VisualMenuScreen extends Screen {
     private String[] toggleKeys() {
         return switch(activeTab) {
             case 0 -> new String[]{"jump_circle","ambient_particles","custom_hotbar"};
-            case 1 -> new String[]{"wet_floor","rain_ripples","sky_overlay","soft_lighting"};
-            case 2 -> new String[]{"entity_boxes","player_names"};
+            case 1 -> new String[]{"wet_floor","rain_ripples","soft_lighting"};
+            case 2 -> new String[]{"sky_overlay"};
+            case 3 -> new String[]{"entity_boxes","player_names"};
             default -> new String[0];
         };
     }
@@ -187,7 +222,7 @@ public final class VisualMenuScreen extends Screen {
         return switch(activeTab) {
             case 0 -> new String[]{"jump_size","particle_density"};
             case 1 -> new String[]{"wet_intensity","puddle_radius"};
-            case 2 -> new String[]{"box_range"};
+            case 3 -> new String[]{"box_range"};
             default -> new String[0];
         };
     }
@@ -210,10 +245,20 @@ public final class VisualMenuScreen extends Screen {
             }
         }
         for(int i=0;i<TABS.length;i++){
-            int x=px()+21,y=py()+80+i*47;
-            if(mouseX>=x&&mouseX<=x+174&&mouseY>=y&&mouseY<=y+38){activeTab=i;return true;}
+            int x=px()+21,y=py()+78+i*41;
+            if(mouseX>=x&&mouseX<=x+174&&mouseY>=y&&mouseY<=y+34){activeTab=i;return true;}
         }
-        if(activeTab==3){
+        if(activeTab==2){
+            for(int i=0;i<SKY_NAMES.length;i++){
+                int x=contentX(),y=contentY()+66+i*64;
+                if(mouseX>=x&&mouseX<=x+contentW()&&mouseY>=y&&mouseY<=y+55){
+                    VisualSettings.setSkyStyle(i);
+                    VisualSettings.set("sky_overlay", true);
+                    return true;
+                }
+            }
+        }
+        if(activeTab==4){
             for(int i=0;i<3;i++){
                 int x=contentX(),y=contentY()+i*91;
                 if(mouseX>=x&&mouseX<=x+contentW()&&mouseY>=y&&mouseY<=y+76){VisualSettings.applyPreset(i);return true;}

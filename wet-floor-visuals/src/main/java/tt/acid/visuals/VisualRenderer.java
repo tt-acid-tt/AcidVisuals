@@ -37,7 +37,12 @@ public final class VisualRenderer {
     private static final Identifier JUMP_RING = id("textures/fx/jump_ring");
     private static final Identifier ORB = id("textures/fx/orb");
     private static final Identifier WET_SURFACE = id("textures/fx/wet_surface");
-    private static final Identifier SKY = id("textures/environment/sky_overlay");
+    private static final Identifier[] SKY_TEXTURES = {
+        id("textures/environment/sky_aurora"),
+        id("textures/environment/sky_nebula"),
+        id("textures/environment/sky_sunset"),
+        id("textures/environment/sky_dream")
+    };
     private static final Identifier FONT = id("acid");
     private static final List<Ring> RINGS = new ArrayList<>();
     private static final List<GlowParticle> PARTICLES = new ArrayList<>();
@@ -231,7 +236,7 @@ public final class VisualRenderer {
                 int alpha = (int) (220 * (1 - progress));
                 VertexConsumer ringTexture = consumers.getBuffer(RenderLayer.getEntityTranslucent(JUMP_RING));
                 drawHorizontalTexture(ringTexture, matrix, ring.x - camera.x, ring.y - camera.y,
-                    ring.z - camera.z, radius, radius, alpha);
+                    ring.z - camera.z, radius, radius, ar, ag, ab, alpha);
             }
             VertexConsumer ringLines = consumers.getBuffer(RenderLayer.getLines());
             for (Ring ring : RINGS) {
@@ -250,13 +255,21 @@ public final class VisualRenderer {
 
         if (VisualSettings.get("wet_floor") && !WET_TILES.isEmpty()) {
             float intensity = VisualSettings.slider("wet_intensity");
-            VertexConsumer surface = consumers.getBuffer(RenderLayer.getEntityTranslucent(WET_SURFACE));
-            int index = 0;
+            long time = client.world.getTime();
+            Identifier reflectedSky = SKY_TEXTURES[VisualSettings.skyStyle()];
+
+            // Pass 1: reflection-mapped sky. Each floor vertex maps the mirrored view ray
+            // into the equirectangular sky texture, with animated ripple distortion and Fresnel alpha.
+            VertexConsumer reflection = consumers.getBuffer(RenderLayer.getEntityTranslucent(reflectedSky));
             for (WetTile tile : WET_TILES) {
-                int alpha = 178 + (int) (intensity * 65) + (tile.turn % 2) * 8;
-                drawWetTile(surface, matrix, tile.x - camera.x, tile.y - camera.y,
-                    tile.z - camera.z, alpha, tile.turn);
-                index++;
+                drawReflectionTile(reflection, matrix, tile.x, tile.y, tile.z, camera, intensity, time, ar, ag, ab);
+            }
+
+            // Pass 2: high-frequency gloss streaks. The second pass has its own consumer/layer.
+            VertexConsumer sheen = consumers.getBuffer(RenderLayer.getEntityTranslucent(WET_SURFACE));
+            for (WetTile tile : WET_TILES) {
+                drawWetSheenTile(sheen, matrix, tile.x - camera.x, tile.y - camera.y + 0.0016,
+                    tile.z - camera.z, intensity, time, tile.turn, ar, ag, ab);
             }
         }
 
@@ -268,7 +281,7 @@ public final class VisualRenderer {
                 double ry = drop.y - camera.y;
                 double rz = drop.z - camera.z;
                 segment(wetLines, matrix, rx, ry, rz, rx - 0.012, ry - 0.17, rz - 0.012,
-                    194, 232, 255, 190);
+                    165 + ar * 90 / 255, 165 + ag * 90 / 255, 165 + ab * 90 / 255, 205);
             }
             float intensity = VisualSettings.slider("wet_intensity");
             for (Ripple ripple : RIPPLES) {
@@ -305,7 +318,8 @@ public final class VisualRenderer {
         String raw=entity.getName().getString()+"  •  "+String.format(java.util.Locale.ROOT,"%.1fm",distance);
         Text label=Text.literal(raw).setStyle(Style.EMPTY.withFont(FONT));
         int width=client.textRenderer.getWidth(label);
-        client.textRenderer.draw(label,-width/2f,0,0xFFFFFFFF,false,matrices.peek().getPositionMatrix(),consumers,
+        int labelColor = 0xFF000000 | ((r & 255) << 16) | ((g & 255) << 8) | (b & 255);
+        client.textRenderer.draw(label,-width/2f,0,labelColor,false,matrices.peek().getPositionMatrix(),consumers,
             TextRenderer.TextLayerType.SEE_THROUGH,0x80101D2A,LightmapTextureManager.MAX_LIGHT_COORDINATE);
         matrices.pop();
     }
@@ -351,25 +365,82 @@ public final class VisualRenderer {
         out.vertex(m,(float)x2,(float)y2,(float)z2).color(r,g,b,a).normal(0,1,0);
     }
 
-    private static void drawHorizontalTexture(VertexConsumer out,Matrix4f matrix,double x,double y,double z,double rx,double rz,int alpha){
-        out.vertex(matrix,(float)(x-rx),(float)y,(float)(z-rz)).color(255,255,255,alpha).texture(0,0).overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(0,1,0);
-        out.vertex(matrix,(float)(x-rx),(float)y,(float)(z+rz)).color(255,255,255,alpha).texture(0,1).overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(0,1,0);
-        out.vertex(matrix,(float)(x+rx),(float)y,(float)(z+rz)).color(255,255,255,alpha).texture(1,1).overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(0,1,0);
-        out.vertex(matrix,(float)(x+rx),(float)y,(float)(z-rz)).color(255,255,255,alpha).texture(1,0).overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(0,1,0);
+    private static void drawHorizontalTexture(VertexConsumer out, Matrix4f matrix, double x, double y, double z,
+                                               double rx, double rz, int r, int g, int b, int alpha) {
+        out.vertex(matrix,(float)(x-rx),(float)y,(float)(z-rz)).color(r,g,b,alpha).texture(0,0).overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(0,1,0);
+        out.vertex(matrix,(float)(x-rx),(float)y,(float)(z+rz)).color(r,g,b,alpha).texture(0,1).overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(0,1,0);
+        out.vertex(matrix,(float)(x+rx),(float)y,(float)(z+rz)).color(r,g,b,alpha).texture(1,1).overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(0,1,0);
+        out.vertex(matrix,(float)(x+rx),(float)y,(float)(z-rz)).color(r,g,b,alpha).texture(1,0).overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(0,1,0);
     }
 
-    private static void drawWetTile(VertexConsumer out, Matrix4f matrix, double x, double y, double z, int alpha, int rotation) {
-        double x0 = x - 0.5, x1 = x + 0.5, z0 = z - 0.5, z1 = z + 0.5;
-        float[][] uv = switch (rotation & 3) {
-            case 1 -> new float[][]{{0,1},{1,1},{1,0},{0,0}};
-            case 2 -> new float[][]{{1,1},{1,0},{0,0},{0,1}};
-            case 3 -> new float[][]{{1,0},{0,0},{0,1},{1,1}};
-            default -> new float[][]{{0,0},{0,1},{1,1},{1,0}};
+    private static float clamp01(double value) {
+        return (float)Math.max(0.0, Math.min(1.0, value));
+    }
+
+    private static float fract(double value) {
+        return (float)(value - Math.floor(value));
+    }
+
+    private static void drawReflectionTile(VertexConsumer out, Matrix4f matrix, double centerX, double worldY, double centerZ,
+                                           Vec3d camera, float intensity, long time, int ar, int ag, int ab) {
+        double[][] points = {
+            {centerX - 0.5, worldY, centerZ - 0.5},
+            {centerX - 0.5, worldY, centerZ + 0.5},
+            {centerX + 0.5, worldY, centerZ + 0.5},
+            {centerX + 0.5, worldY, centerZ - 0.5}
         };
-        double[][] p = {{x0,y,z0},{x0,y,z1},{x1,y,z1},{x1,y,z0}};
+        double phase = time * 0.00024;
+        double centerDx = centerX - camera.x;
+        double centerDz = centerZ - camera.z;
+        double centerU = Math.atan2(centerDz, centerDx) / (Math.PI * 2.0) + phase;
+        for (double[] point : points) {
+            double wx = point[0], wy = point[1], wz = point[2];
+            double dx = wx - camera.x;
+            double dy = wy - camera.y;
+            double dz = wz - camera.z;
+            double distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
+            if (distance < 0.001) continue;
+
+            // Mirror the camera-to-floor ray over the horizontal plane normal.
+            double rx = dx / distance;
+            double ry = -dy / distance;
+            double rz = dz / distance;
+            double waveA = Math.sin(wx * 0.73 + wz * 0.37 + time * 0.075);
+            double waveB = Math.cos(wx * 0.29 - wz * 0.81 + time * 0.052);
+            double u = Math.atan2(rz, rx) / (Math.PI * 2.0) + phase + waveA * 0.006;
+            while (u - centerU > 0.5) u -= 1.0;
+            while (u - centerU < -0.5) u += 1.0;
+            double v = clamp01(Math.acos(Math.max(-1.0, Math.min(1.0, ry))) / Math.PI + waveB * 0.0045);
+
+            double viewCosine = Math.abs(dy) / distance;
+            float fresnel = (float)(0.16 + Math.pow(1.0 - clamp01(viewCosine), 3.4) * 0.84);
+            int alpha = (int)Math.max(42, Math.min(224, 28 + intensity * 48 + fresnel * (108 + intensity * 42)));
+            int tintR = 178 + ar * 77 / 255;
+            int tintG = 178 + ag * 77 / 255;
+            int tintB = 178 + ab * 77 / 255;
+            out.vertex(matrix, (float)(wx - camera.x), (float)(wy - camera.y), (float)(wz - camera.z))
+                .color(tintR, tintG, tintB, alpha).texture((float)u, (float)v)
+                .overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(0,1,0);
+        }
+    }
+
+    private static void drawWetSheenTile(VertexConsumer out, Matrix4f matrix, double x, double y, double z,
+                                         float intensity, long time, int turn, int ar, int ag, int ab) {
+        float phase = fract(time * 0.003 + turn * 0.173);
+        double slideX = Math.sin(time * 0.025 + turn) * 0.08;
+        double slideZ = Math.cos(time * 0.019 + turn * 2.0) * 0.08;
+        double[][] points = {{x-0.5,y,z-0.5},{x-0.5,y,z+0.5},{x+0.5,y,z+0.5},{x+0.5,y,z-0.5}};
+        float[][] uv = {{(float)(slideX),(float)(slideZ)},
+            {(float)(slideX),(float)(1+slideZ)},
+            {(float)(1+slideX),(float)(1+slideZ)},
+            {(float)(1+slideX),(float)(slideZ)}};
+        int r = 188 + ar * 67 / 255;
+        int g = 188 + ag * 67 / 255;
+        int b = 188 + ab * 67 / 255;
+        int alpha = (int)Math.max(22, Math.min(142, 22 + intensity * 48 + (0.28 + 0.22 * Math.sin(phase * Math.PI * 2)) * 96));
         for (int i = 0; i < 4; i++) {
-            out.vertex(matrix, (float)p[i][0], (float)p[i][1], (float)p[i][2])
-                .color(255,255,255,alpha).texture(uv[i][0],uv[i][1])
+            out.vertex(matrix, (float)points[i][0], (float)points[i][1], (float)points[i][2])
+                .color(r,g,b,alpha).texture(uv[i][0],uv[i][1])
                 .overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(0,1,0);
         }
     }
@@ -382,10 +453,15 @@ public final class VisualRenderer {
         matrices.push();
         MatrixStack.Entry entry = matrices.peek();
         Matrix4f matrix = entry.getPositionMatrix();
-        VertexConsumer out = context.consumers().getBuffer(RenderLayer.getEntityTranslucent(SKY));
+        Identifier skyTexture = SKY_TEXTURES[VisualSettings.skyStyle()];
+        VertexConsumer out = context.consumers().getBuffer(RenderLayer.getEntityTranslucent(skyTexture));
         final int latitudeSteps = 24;
         final int longitudeSteps = 64;
-        final float radius = 480.0f;
+        final float radius = 460.0f;
+        long time = client.world.getTime();
+        double phase = time * 0.00024;
+        int accent = VisualSettings.accent();
+        int ar = (accent >> 16) & 255, ag = (accent >> 8) & 255, ab = accent & 255;
 
         for (int lat = 0; lat < latitudeSteps; lat++) {
             float v0 = lat / (float) latitudeSteps;
@@ -393,33 +469,38 @@ public final class VisualRenderer {
             float theta0 = (float) (Math.PI * v0);
             float theta1 = (float) (Math.PI * v1);
             for (int lon = 0; lon < longitudeSteps; lon++) {
-                float u0 = lon / (float) longitudeSteps;
-                float u1 = (lon + 1) / (float) longitudeSteps;
-                float phi0 = (float) (Math.PI * 2.0 * u0);
-                float phi1 = (float) (Math.PI * 2.0 * u1);
+                float u0 = (float)(lon / (double)longitudeSteps + phase);
+                float u1 = (float)((lon + 1) / (double)longitudeSteps + phase);
+                float phi0 = (float) (Math.PI * 2.0 * (lon / (double)longitudeSteps));
+                float phi1 = (float) (Math.PI * 2.0 * ((lon + 1) / (double)longitudeSteps));
 
-                emitSkyVertex(out, entry, matrix, radius, theta0, phi0, u0, v0);
-                emitSkyVertex(out, entry, matrix, radius, theta1, phi0, u0, v1);
-                emitSkyVertex(out, entry, matrix, radius, theta1, phi1, u1, v1);
-                emitSkyVertex(out, entry, matrix, radius, theta0, phi1, u1, v0);
+                emitSkyVertex(out, entry, matrix, radius, theta0, phi0, u0, v0, ar, ag, ab, time);
+                emitSkyVertex(out, entry, matrix, radius, theta1, phi0, u0, v1, ar, ag, ab, time);
+                emitSkyVertex(out, entry, matrix, radius, theta1, phi1, u1, v1, ar, ag, ab, time);
+                emitSkyVertex(out, entry, matrix, radius, theta0, phi1, u1, v0, ar, ag, ab, time);
 
-                // Reverse faces as well: this remains visible with either culling convention.
-                emitSkyVertex(out, entry, matrix, radius, theta0, phi1, u1, v0);
-                emitSkyVertex(out, entry, matrix, radius, theta1, phi1, u1, v1);
-                emitSkyVertex(out, entry, matrix, radius, theta1, phi0, u0, v1);
-                emitSkyVertex(out, entry, matrix, radius, theta0, phi0, u0, v0);
+                // Double-sided sky dome avoids disappearing wedges on different graphics settings.
+                emitSkyVertex(out, entry, matrix, radius, theta0, phi1, u1, v0, ar, ag, ab, time);
+                emitSkyVertex(out, entry, matrix, radius, theta1, phi1, u1, v1, ar, ag, ab, time);
+                emitSkyVertex(out, entry, matrix, radius, theta1, phi0, u0, v1, ar, ag, ab, time);
+                emitSkyVertex(out, entry, matrix, radius, theta0, phi0, u0, v0, ar, ag, ab, time);
             }
         }
         matrices.pop();
     }
 
     private static void emitSkyVertex(VertexConsumer out, MatrixStack.Entry entry, Matrix4f matrix,
-                                      float radius, float theta, float phi, float u, float v) {
-        float sin = (float) Math.sin(theta);
-        float x = radius * sin * (float) Math.cos(phi);
-        float y = radius * (float) Math.cos(theta);
-        float z = radius * sin * (float) Math.sin(phi);
-        out.vertex(matrix, x, y, z).color(255,255,255,255).texture(u,v)
+                                      float radius, float theta, float phi, float u, float v,
+                                      int ar, int ag, int ab, long time) {
+        float sin = (float)Math.sin(theta);
+        float x = radius * sin * (float)Math.cos(phi);
+        float y = radius * (float)Math.cos(theta);
+        float z = radius * sin * (float)Math.sin(phi);
+        float pulse = (float)(0.96 + 0.04 * Math.sin(time * 0.025 + theta * 2.0));
+        int tintR = Math.min(255, (int)((150 + ar * 105 / 255) * pulse));
+        int tintG = Math.min(255, (int)((150 + ag * 105 / 255) * pulse));
+        int tintB = Math.min(255, (int)((150 + ab * 105 / 255) * pulse));
+        out.vertex(matrix, x, y, z).color(tintR,tintG,tintB,255).texture(u,v)
             .overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE)
             .normal(entry, -x/radius, -y/radius, -z/radius);
     }
