@@ -189,11 +189,6 @@ public final class VisualMenuScreen extends Screen {
         c.fill(knob, sy + 2, knob + 13, sy + 18, 0xFFF3F7FA);
     }
 
-    private void renderHudPage(DrawContext c, int mx, int my) {
-        drawToggle(c, "entity_boxes", "Rounded Entity ESP", "Контуры, ник и расстояние до сущности", 0, mx, my);
-        drawToggle(c, "player_names", "Подписи над целями", "Кастомный текст поверх мира", 1, mx, my);
-        drawSlider(c, "box_range", "Дальность ESP", "Радиус отображения от 8 до 64 блоков", 0, mx, my);
-    }
 
     private void renderPresets(DrawContext c, int mx, int my) {
         int x=contentX(), w=contentW();
