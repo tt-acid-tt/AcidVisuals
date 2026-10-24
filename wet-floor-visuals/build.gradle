@@ -53,7 +53,7 @@ tasks.register("generateAcidVisualsArt") {
             g.setColor(new java.awt.Color(114, 228, 255, 190))
             g.setStroke(new java.awt.BasicStroke(3.0f))
             g.draw(rr.call(5, 5, w-10, h-10, 68))
-            g.setPaint(new java.awt.GradientPaint(40, 24, new java.awt.Color(125, 244, 255, 115), w*0.75f, 80, new java.awt.Color(125, 244, 255, 0)))
+            g.setPaint(new java.awt.GradientPaint(40, 24, new java.awt.Color(125, 244, 255, 115), (float)(w * 0.75), 80, new java.awt.Color(125, 244, 255, 0)))
             g.fill(rr.call(28, 18, w-56, 8, 8))
             for (int i = 0; i < 1800; i++) {
                 int x = rng.nextInt(w), y = rng.nextInt(h)
@@ -150,7 +150,7 @@ tasks.register("generateAcidVisualsArt") {
                 g.setColor(new java.awt.Color(210,241,255,20+rng.nextInt(28)))
                 g.fillOval(x,y,1+rng.nextInt(3),1+rng.nextInt(3))
             }
-            g.setPaint(new java.awt.GradientPaint(0,h*0.45f,new java.awt.Color(10,30,70,13),0,h,new java.awt.Color(10,30,70,0)))
+            g.setPaint(new java.awt.GradientPaint(0,(float)(h * 0.45),new java.awt.Color(10,30,70,13),0,h,new java.awt.Color(10,30,70,0)))
             g.fillRect(0,(int)(h * 0.42),w,(int)(h * 0.58))
         }
 
