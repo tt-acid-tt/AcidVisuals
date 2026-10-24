@@ -219,6 +219,25 @@ public final class VisualRenderer {
 
                 int stableTurn = Math.floorMod(worldX * 73428767 + worldZ * 912931 + top.getY() * 31337, 8);
                 WET_TILES.add(new WetTile(worldX + 0.5, top.getY() + 0.012, worldZ + 0.5, stableTurn));
+
+                // Capture nearby rooms, stacked builds and lower terraces in addition to the
+                // broad heightmap pass. Plants above the block are allowed; only full solid
+                // tops are sampled to avoid drawing through water or transparent geometry.
+                int localRadius = 48;
+                if (dx * dx + dz * dz <= localRadius * localRadius) {
+                    int minSurfaceY = Math.max(client.world.getBottomY(), player.getBlockY() - 18);
+                    int maxSurfaceY = Math.min(client.world.getTopYInclusive() - 1, player.getBlockY() + 12);
+                    for (int surfaceY = maxSurfaceY; surfaceY >= minSurfaceY; surfaceY--) {
+                        if (surfaceY == floor.getY()) continue;
+                        BlockPos localFloor = new BlockPos(worldX, surfaceY, worldZ);
+                        BlockState localState = client.world.getBlockState(localFloor);
+                        if (!localState.isOpaqueFullCube()) continue;
+                        BlockState localAbove = client.world.getBlockState(localFloor.up());
+                        if (localAbove.isOpaqueFullCube()) continue;
+                        int localTurn = Math.floorMod(worldX * 73428767 + worldZ * 912931 + surfaceY * 31337, 8);
+                        WET_TILES.add(new WetTile(worldX + 0.5, surfaceY + 1.012, worldZ + 0.5, localTurn));
+                    }
+                }
             }
         }
     }
