@@ -91,8 +91,8 @@ public final class VisualMenuScreen extends Screen {
         for (int i=0; i<VisualSettings.colorCount(); i++) {
             int sx = paletteX + i*22;
             int color = VisualSettings.colorAt(i);
-            context.fill(sx, py()+22, sx+15, py()+37, color);
-            context.drawBorder(sx, py()+22, 15, 15, i == VisualSettings.accentIndex() ? 0xFFFFFFFF : 0x805D8194);
+            if (i == VisualSettings.accentIndex()) fillRounded(context, sx - 1, py() + 21, 17, 17, 0xFFF2F8FC);
+            fillRounded(context, sx, py() + 22, 15, 15, color);
         }
 
         for (int i=0; i<TABS.length; i++) {
@@ -274,7 +274,7 @@ public final class VisualMenuScreen extends Screen {
     private String[] sliderKeys() {
         return switch(activeTab) {
             case 0 -> new String[]{"jump_size","particle_density"};
-            case 1 -> new String[]{"wet_intensity","puddle_radius"};
+            case 1 -> new String[]{"wet_intensity","reflection_wave"};
             case 3 -> new String[]{"box_range"};
             default -> new String[0];
         };
