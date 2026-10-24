@@ -150,7 +150,7 @@ tasks.register("generateAcidVisualsArt") {
                 g.fillOval(x,y,1+rng.nextInt(3),1+rng.nextInt(3))
             }
             g.setPaint(new java.awt.GradientPaint(0,h*0.45f,new java.awt.Color(10,30,70,13),0,h,new java.awt.Color(10,30,70,0)))
-            g.fillRect(0,(int)(h*.42),w,(int)(h*.58))
+            g.fillRect(0,(int)(h * 0.42),w,(int)(h * 0.58))
         }
 
         def glyphSet = new LinkedHashSet<Character>()
