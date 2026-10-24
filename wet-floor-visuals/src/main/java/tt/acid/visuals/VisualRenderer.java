@@ -1,5 +1,7 @@
 package tt.acid.visuals;
 
+// Client-side visuals; rendering effects are local and require no server commands.
+
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
