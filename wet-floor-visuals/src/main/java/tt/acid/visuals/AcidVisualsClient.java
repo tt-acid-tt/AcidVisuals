@@ -20,7 +20,7 @@ public final class AcidVisualsClient implements ClientModInitializer {
         });
         HudLayerRegistrationCallback.EVENT.register(layers -> {
             layers.attachLayerAfter(IdentifiedLayer.HOTBAR_AND_BARS, Identifier.of("acidvisuals", "custom_hotbar"),
-                (context, tickCounter) -> VisualRenderer.renderHotbar(context));
+                (context, tickCounter) -> { VisualRenderer.renderHotbar(context); VisualRenderer.renderHud(context); });
         });
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
             VisualRenderer.tick(client);
