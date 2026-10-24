@@ -7,6 +7,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.option.CloudRenderMode;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
@@ -36,12 +37,15 @@ public final class VisualRenderer {
     private static final Identifier SELECTED = id("textures/gui/selected_slot");
     private static final Identifier JUMP_RING = id("textures/fx/jump_ring");
     private static final Identifier ORB = id("textures/fx/orb");
-    private static final Identifier WET_SURFACE = id("textures/fx/wet_surface");
     private static final Identifier[] SKY_TEXTURES = {
         id("textures/environment/sky_aurora"),
         id("textures/environment/sky_nebula"),
         id("textures/environment/sky_sunset"),
-        id("textures/environment/sky_dream")
+        id("textures/environment/sky_dream"),
+        id("textures/environment/sky_void"),
+        id("textures/environment/sky_emerald"),
+        id("textures/environment/sky_supernova"),
+        id("textures/environment/sky_cyber")
     };
     private static final Identifier FONT = id("acid");
     private static final List<Ring> RINGS = new ArrayList<>();
@@ -54,6 +58,8 @@ public final class VisualRenderer {
     private static long lastSurfaceScan = -1000;
     private static float smoothSlotX = Float.NaN;
     private static long clientTicks;
+    private static CloudRenderMode previousCloudMode;
+    private static boolean forcedCloudsOff;
 
     private VisualRenderer() {}
 
@@ -63,6 +69,7 @@ public final class VisualRenderer {
     }
 
     public static void tick(MinecraftClient client) {
+        syncClouds(client);
         if (client.player == null || client.world == null) {
             RINGS.clear();
             PARTICLES.clear();
@@ -90,6 +97,7 @@ public final class VisualRenderer {
         Iterator<GlowParticle> particleIterator = PARTICLES.iterator();
         while (particleIterator.hasNext()) {
             GlowParticle p = particleIterator.next();
+            p.prevX = p.x; p.prevY = p.y; p.prevZ = p.z;
             p.x += p.vx; p.y += p.vy; p.z += p.vz;
             p.vy += 0.0003;
             p.age++;
@@ -132,20 +140,53 @@ public final class VisualRenderer {
         var player = client.player;
         int radius = Math.round(VisualSettings.slider("puddle_radius"));
         int radiusSq = radius * radius;
+        int minY = Math.max(client.world.getBottomY(), player.getBlockY() - 14);
+        int maxY = Math.min(client.world.getTopYInclusive(), player.getBlockY() + 9);
+
+        // Scan a broad cylinder of exposed full block tops instead of only the world heightmap.
+        // This also covers terraces and visible cave floors, not just the single highest block
+        // in each x/z column.
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
                 if (dx * dx + dz * dz > radiusSq) continue;
-                BlockPos column = new BlockPos(player.getBlockX() + dx, player.getBlockY(), player.getBlockZ() + dz);
-                BlockPos top = client.world.getTopPosition(Heightmap.Type.MOTION_BLOCKING, column);
-                if (Math.abs(top.getY() - player.getY()) > 9.0) continue;
-                BlockPos floor = top.down();
-                BlockState state = client.world.getBlockState(floor);
-                if (!state.isOpaqueFullCube() || !client.world.getBlockState(top).isAir()) continue;
+                int worldX = player.getBlockX() + dx;
+                int worldZ = player.getBlockZ() + dz;
+                int surfacesInColumn = 0;
+                for (int y = maxY; y >= minY; y--) {
+                    BlockPos floor = new BlockPos(worldX, y, worldZ);
+                    BlockState state = client.world.getBlockState(floor);
+                    if (!state.isOpaqueFullCube() || !client.world.getBlockState(floor.up()).isAir()) continue;
 
-                int stableTurn = Math.floorMod(top.getX() * 73428767 + top.getZ() * 912931, 4);
-                WET_TILES.add(new WetTile(top.getX() + 0.5, top.getY() + 0.012, top.getZ() + 0.5, stableTurn));
-                if (WET_TILES.size() >= 380) return;
+                    int stableTurn = Math.floorMod(worldX * 73428767 + worldZ * 912931 + y * 31337, 8);
+                    WET_TILES.add(new WetTile(worldX + 0.5, y + 1.012, worldZ + 0.5, stableTurn));
+                    surfacesInColumn++;
+                    if (WET_TILES.size() >= 2200) return;
+                    // At most three open surfaces per column prevents stacked caves from
+                    // spending too much time in the reflection pass.
+                    if (surfacesInColumn >= 3) break;
+                }
             }
+        }
+    }
+
+    private static void syncClouds(MinecraftClient client) {
+        if (client == null || client.options == null) return;
+        boolean shouldHide = client.world != null && VisualSettings.get("sky_overlay");
+        CloudRenderMode current = client.options.getCloudRenderModeValue();
+        if (shouldHide) {
+            if (!forcedCloudsOff) {
+                previousCloudMode = current;
+                forcedCloudsOff = true;
+            }
+            if (current != CloudRenderMode.OFF) {
+                client.options.getCloudRenderMode().setValue(CloudRenderMode.OFF);
+            }
+        } else if (forcedCloudsOff) {
+            if (client.options.getCloudRenderModeValue() == CloudRenderMode.OFF && previousCloudMode != null) {
+                client.options.getCloudRenderMode().setValue(previousCloudMode);
+            }
+            previousCloudMode = null;
+            forcedCloudsOff = false;
         }
     }
 
@@ -199,6 +240,7 @@ public final class VisualRenderer {
         MatrixStack matrices = context.matrixStack();
         VertexConsumerProvider consumers = context.consumers();
         Vec3d camera = context.camera().getPos();
+        float tickDelta = context.tickCounter().getTickDelta(false);
         matrices.push();
         Matrix4f matrix = matrices.peek().getPositionMatrix();
         int accent = VisualSettings.accent();
@@ -231,16 +273,16 @@ public final class VisualRenderer {
         if (VisualSettings.get("jump_circle") && !RINGS.isEmpty()) {
             // Emit all textured rings before switching to the line layer.
             for (Ring ring : RINGS) {
-                float progress = ring.age / 28.0f;
+                float progress = (ring.age + tickDelta) / 28.0f;
                 float radius = 0.22f + progress * VisualSettings.slider("jump_size");
                 int alpha = (int) (220 * (1 - progress));
-                VertexConsumer ringTexture = consumers.getBuffer(RenderLayer.getEntityTranslucent(JUMP_RING));
+                VertexConsumer ringTexture = consumers.getBuffer(VisualRenderLayers.translucentNoDepthWrite(JUMP_RING));
                 drawHorizontalTexture(ringTexture, matrix, ring.x - camera.x, ring.y - camera.y,
                     ring.z - camera.z, radius, radius, ar, ag, ab, alpha);
             }
             VertexConsumer ringLines = consumers.getBuffer(RenderLayer.getLines());
             for (Ring ring : RINGS) {
-                float progress = ring.age / 28.0f;
+                float progress = (ring.age + tickDelta) / 28.0f;
                 float radius = 0.22f + progress * VisualSettings.slider("jump_size");
                 int alpha = (int) (220 * (1 - progress));
                 drawRing(ringLines, matrix, ring.x - camera.x, ring.y - camera.y, ring.z - camera.z,
@@ -258,18 +300,11 @@ public final class VisualRenderer {
             long time = client.world.getTime();
             Identifier reflectedSky = SKY_TEXTURES[VisualSettings.skyStyle()];
 
-            // Pass 1: reflection-mapped sky. Each floor vertex maps the mirrored view ray
-            // into the equirectangular sky texture, with animated ripple distortion and Fresnel alpha.
-            VertexConsumer reflection = consumers.getBuffer(RenderLayer.getEntityTranslucent(reflectedSky));
+            // The large bundled panorama is the only wet-floor texture: each face samples the
+            // reflected sky with wave distortion and a Fresnel-like edge response. No blue overlay.
+            VertexConsumer reflection = consumers.getBuffer(VisualRenderLayers.translucentNoDepthWrite(reflectedSky));
             for (WetTile tile : WET_TILES) {
                 drawReflectionTile(reflection, matrix, tile.x, tile.y, tile.z, camera, intensity, time, ar, ag, ab);
-            }
-
-            // Pass 2: high-frequency gloss streaks. The second pass has its own consumer/layer.
-            VertexConsumer sheen = consumers.getBuffer(RenderLayer.getEntityTranslucent(WET_SURFACE));
-            for (WetTile tile : WET_TILES) {
-                drawWetSheenTile(sheen, matrix, tile.x - camera.x, tile.y - camera.y + 0.0016,
-                    tile.z - camera.z, intensity, time, tile.turn, ar, ag, ab);
             }
         }
 
@@ -291,7 +326,7 @@ public final class VisualRenderer {
                 double rz = ripple.z - camera.z;
                 float radius = 0.035f + progress * 0.22f;
                 int alpha = (int) (185 * (1.0f - progress) * intensity);
-                drawRing(wetLines, matrix, rx, ry, rz, radius, 204, 240, 255, alpha, 20);
+                drawRing(wetLines, matrix, rx, ry, rz, radius, ar, ag, ab, alpha, 24);
                 if (progress > 0.38f) {
                     drawRing(wetLines, matrix, rx, ry + 0.002, rz, radius * 0.58f,
                         240, 250, 255, (int) (80 * (1.0f - progress)), 16);
@@ -302,7 +337,11 @@ public final class VisualRenderer {
         if (VisualSettings.get("ambient_particles") && !PARTICLES.isEmpty()) {
             for (GlowParticle particle : PARTICLES) {
                 float fade = Math.max(0.0f, 1.0f - particle.age / (float) particle.life);
-                drawGlowBillboard(particle.x - camera.x, particle.y - camera.y, particle.z - camera.z,
+                double px = particle.prevX + (particle.x - particle.prevX) * tickDelta;
+                double py = particle.prevY + (particle.y - particle.prevY) * tickDelta;
+                double pz = particle.prevZ + (particle.z - particle.prevZ) * tickDelta;
+                fade = Math.max(0.0f, 1.0f - (particle.age - 1 + tickDelta) / (float) particle.life);
+                drawGlowBillboard(px - camera.x, py - camera.y, pz - camera.z,
                     0.035f + 0.045f * fade, ar, ag, ab, (int) (210 * fade), matrices, consumers, client);
             }
         }
@@ -415,32 +454,11 @@ public final class VisualRenderer {
             double viewCosine = Math.abs(dy) / distance;
             float fresnel = (float)(0.16 + Math.pow(1.0 - clamp01(viewCosine), 3.4) * 0.84);
             int alpha = (int)Math.max(42, Math.min(224, 28 + intensity * 48 + fresnel * (108 + intensity * 42)));
-            int tintR = 178 + ar * 77 / 255;
-            int tintG = 178 + ag * 77 / 255;
-            int tintB = 178 + ab * 77 / 255;
+            int tintR = 232 + ar * 23 / 255;
+            int tintG = 232 + ag * 23 / 255;
+            int tintB = 232 + ab * 23 / 255;
             out.vertex(matrix, (float)(wx - camera.x), (float)(wy - camera.y), (float)(wz - camera.z))
                 .color(tintR, tintG, tintB, alpha).texture((float)u, (float)v)
-                .overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(0,1,0);
-        }
-    }
-
-    private static void drawWetSheenTile(VertexConsumer out, Matrix4f matrix, double x, double y, double z,
-                                         float intensity, long time, int turn, int ar, int ag, int ab) {
-        float phase = fract(time * 0.003 + turn * 0.173);
-        double slideX = Math.sin(time * 0.025 + turn) * 0.08;
-        double slideZ = Math.cos(time * 0.019 + turn * 2.0) * 0.08;
-        double[][] points = {{x-0.5,y,z-0.5},{x-0.5,y,z+0.5},{x+0.5,y,z+0.5},{x+0.5,y,z-0.5}};
-        float[][] uv = {{(float)(slideX),(float)(slideZ)},
-            {(float)(slideX),(float)(1+slideZ)},
-            {(float)(1+slideX),(float)(1+slideZ)},
-            {(float)(1+slideX),(float)(slideZ)}};
-        int r = 188 + ar * 67 / 255;
-        int g = 188 + ag * 67 / 255;
-        int b = 188 + ab * 67 / 255;
-        int alpha = (int)Math.max(22, Math.min(142, 22 + intensity * 48 + (0.28 + 0.22 * Math.sin(phase * Math.PI * 2)) * 96));
-        for (int i = 0; i < 4; i++) {
-            out.vertex(matrix, (float)points[i][0], (float)points[i][1], (float)points[i][2])
-                .color(r,g,b,alpha).texture(uv[i][0],uv[i][1])
                 .overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(0,1,0);
         }
     }
@@ -454,7 +472,7 @@ public final class VisualRenderer {
         MatrixStack.Entry entry = matrices.peek();
         Matrix4f matrix = entry.getPositionMatrix();
         Identifier skyTexture = SKY_TEXTURES[VisualSettings.skyStyle()];
-        VertexConsumer out = context.consumers().getBuffer(RenderLayer.getEntityTranslucent(skyTexture));
+        VertexConsumer out = context.consumers().getBuffer(VisualRenderLayers.translucentNoDepthWrite(skyTexture));
         final int latitudeSteps = 24;
         final int longitudeSteps = 64;
         final float radius = 460.0f;
@@ -509,7 +527,7 @@ public final class VisualRenderer {
         matrices.push();
         matrices.translate(x,y,z);
         matrices.multiply(client.getEntityRenderDispatcher().getRotation());
-        VertexConsumer out=consumers.getBuffer(RenderLayer.getEntityTranslucent(ORB));
+        VertexConsumer out=consumers.getBuffer(VisualRenderLayers.translucentNoDepthWrite(ORB));
         var entry=matrices.peek();
         Matrix4f m=entry.getPositionMatrix();
         out.vertex(m,-size,-size,0).color(r,g,b,alpha).texture(0,1).overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(entry,0,0,1);
@@ -567,9 +585,11 @@ public final class VisualRenderer {
     }
     private static final class GlowParticle {
         double x,y,z,vx,vy,vz;
+        double prevX,prevY,prevZ;
         int age,life;
         GlowParticle(double x,double y,double z,double vx,double vy,double vz,int life){
-            this.x=x;this.y=y;this.z=z;this.vx=vx;this.vy=vy;this.vz=vz;this.life=life;
+            this.x=x;this.y=y;this.z=z;this.prevX=x;this.prevY=y;this.prevZ=z;
+            this.vx=vx;this.vy=vy;this.vz=vz;this.life=life;
         }
     }
     private static final class WetTile {
