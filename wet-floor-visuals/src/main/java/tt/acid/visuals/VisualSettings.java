@@ -42,6 +42,7 @@ public final class VisualSettings {
         SLIDERS.put("particle_density", 0.65f);
         SLIDERS.put("wet_intensity", 0.78f);
         SLIDERS.put("puddle_radius", 18.0f);
+        SLIDERS.put("reflection_wave", 0.72f);
         SLIDERS.put("box_range", 32.0f);
     }
 
@@ -57,11 +58,11 @@ public final class VisualSettings {
         if (!SLIDERS.containsKey(key)) return;
         float min = switch (key) {
             case "jump_size" -> 0.55f; case "particle_density" -> 0.1f; case "wet_intensity" -> 0.15f;
-            case "puddle_radius" -> 6.0f; case "box_range" -> 8.0f; default -> 0.0f;
+            case "puddle_radius" -> 6.0f; case "reflection_wave" -> 0.0f; case "box_range" -> 8.0f; default -> 0.0f;
         };
         float max = switch (key) {
             case "jump_size" -> 2.8f; case "particle_density", "wet_intensity" -> 1.0f;
-            case "puddle_radius" -> 24.0f; case "box_range" -> 64.0f; default -> 1.0f;
+            case "puddle_radius" -> 24.0f; case "reflection_wave" -> 1.0f; case "box_range" -> 64.0f; default -> 1.0f;
         };
         SLIDERS.put(key, Math.max(min, Math.min(max, value)));
         save();
@@ -82,7 +83,7 @@ public final class VisualSettings {
                 FLAGS.put("ambient_particles", false); FLAGS.put("custom_hotbar", true); FLAGS.put("sky_overlay", false);
                 FLAGS.put("soft_lighting", true); FLAGS.put("entity_boxes", false); FLAGS.put("player_names", true);
                 SLIDERS.put("jump_size", 1.0f); SLIDERS.put("particle_density", 0.45f);
-                SLIDERS.put("wet_intensity", 0.55f); SLIDERS.put("puddle_radius", 5.0f); accentIndex = 0;
+                SLIDERS.put("wet_intensity", 0.55f); SLIDERS.put("reflection_wave", 0.35f); SLIDERS.put("puddle_radius", 18.0f); accentIndex = 0;
             }
             case 1 -> {
                 skyStyle = 2;
@@ -91,7 +92,7 @@ public final class VisualSettings {
                 FLAGS.put("ambient_particles", true); FLAGS.put("custom_hotbar", true); FLAGS.put("sky_overlay", true);
                 FLAGS.put("soft_lighting", true); FLAGS.put("entity_boxes", false); FLAGS.put("player_names", true);
                 SLIDERS.put("jump_size", 1.35f); SLIDERS.put("particle_density", 0.8f);
-                SLIDERS.put("wet_intensity", 0.95f); SLIDERS.put("puddle_radius", 8.0f); accentIndex = 0;
+                SLIDERS.put("wet_intensity", 0.95f); SLIDERS.put("reflection_wave", 0.85f); SLIDERS.put("puddle_radius", 18.0f); accentIndex = 0;
             }
             case 2 -> {
                 skyStyle = 4;
@@ -100,7 +101,7 @@ public final class VisualSettings {
                 FLAGS.put("ambient_particles", true); FLAGS.put("custom_hotbar", true); FLAGS.put("sky_overlay", true);
                 FLAGS.put("soft_lighting", true); FLAGS.put("entity_boxes", true); FLAGS.put("player_names", true);
                 SLIDERS.put("jump_size", 1.1f); SLIDERS.put("particle_density", 0.9f);
-                SLIDERS.put("wet_intensity", 0.86f); SLIDERS.put("puddle_radius", 7.0f); accentIndex = 1;
+                SLIDERS.put("wet_intensity", 0.86f); SLIDERS.put("reflection_wave", 0.75f); SLIDERS.put("puddle_radius", 18.0f); accentIndex = 1;
             }
         }
         save();
