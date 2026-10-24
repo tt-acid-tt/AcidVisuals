@@ -197,7 +197,6 @@ tasks.register("generateAcidVisualsArt") {
 }
 
 tasks.named("processResources").configure { dependsOn(tasks.named("generateAcidVisualsArt")) }
-tasks.named("sourcesJar").configure { dependsOn(tasks.named("generateAcidVisualsArt")) }
 processResources {
     inputs.property "version", project.version
     filesMatching("fabric.mod.json") { expand "version": inputs.properties.version }
@@ -211,3 +210,4 @@ java {
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
 }
+tasks.named("sourcesJar").configure { dependsOn(tasks.named("generateAcidVisualsArt")) }
