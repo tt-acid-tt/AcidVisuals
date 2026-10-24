@@ -131,75 +131,110 @@ public final class VisualRenderer {
     }
 
     public static void renderWorld(WorldRenderContext context) {
-        MinecraftClient client=MinecraftClient.getInstance();
-        if(client.player==null||client.world==null||context.matrixStack()==null||context.consumers()==null)return;
-        MatrixStack matrices=context.matrixStack();
-        VertexConsumerProvider consumers=context.consumers();
-        Vec3d camera=context.camera().getPos();
-        matrices.push();
-        Matrix4f matrix=matrices.peek().getPositionMatrix();
-        int accent=VisualSettings.accent();
-        int ar=(accent>>16)&255, ag=(accent>>8)&255, ab=accent&255;
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player == null || client.world == null || context.matrixStack() == null || context.consumers() == null) return;
 
-        if(VisualSettings.get("entity_boxes")){
-            VertexConsumer lines=consumers.getBuffer(RenderLayer.getLines());
-            double range=VisualSettings.slider("box_range");
-            double rangeSq=range*range;
-            for(Entity entity:client.world.getEntities()){
-                if(entity==client.player||!entity.isAlive()||entity.squaredDistanceTo(client.player)>rangeSq)continue;
-                if(!(entity instanceof LivingEntity))continue;
-                drawRoundedBox(lines,matrix,entity.getBoundingBox(),camera,ar,ag,ab,entity instanceof PlayerEntity?235:170);
-                if(VisualSettings.get("player_names"))drawName(entity,matrices,consumers,camera,client,ar,ag,ab);
+        MatrixStack matrices = context.matrixStack();
+        VertexConsumerProvider consumers = context.consumers();
+        Vec3d camera = context.camera().getPos();
+        matrices.push();
+        Matrix4f matrix = matrices.peek().getPositionMatrix();
+        int accent = VisualSettings.accent();
+        int ar = (accent >> 16) & 255, ag = (accent >> 8) & 255, ab = accent & 255;
+
+        // The world renderer shares buffered consumers between layers. Requesting another layer can
+        // flush the previous builder, so never reuse a VertexConsumer after switching layers.
+        if (VisualSettings.get("entity_boxes")) {
+            VertexConsumer boxLines = consumers.getBuffer(RenderLayer.getLines());
+            double rangeSq = VisualSettings.slider("box_range") * VisualSettings.slider("box_range");
+            for (Entity entity : client.world.getEntities()) {
+                if (entity == client.player || !entity.isAlive() || entity.squaredDistanceTo(client.player) > rangeSq) continue;
+                if (!(entity instanceof LivingEntity)) continue;
+                drawRoundedBox(boxLines, matrix, entity.getBoundingBox(), camera, ar, ag, ab, entity instanceof PlayerEntity ? 235 : 170);
             }
-        } else if(VisualSettings.get("player_names")) {
-            for(Entity entity:client.world.getEntities()){
-                if(entity==client.player||!(entity instanceof PlayerEntity)||!entity.isAlive())continue;
-                if(entity.squaredDistanceTo(client.player)<VisualSettings.slider("box_range")*VisualSettings.slider("box_range")) {
-                    drawName(entity,matrices,consumers,camera,client,ar,ag,ab);
+        }
+
+        // Text is a separate render layer, so draw all names only after outline vertices are done.
+        if (VisualSettings.get("player_names")) {
+            double rangeSq = VisualSettings.slider("box_range") * VisualSettings.slider("box_range");
+            for (Entity entity : client.world.getEntities()) {
+                if (entity == client.player || !(entity instanceof LivingEntity) || !entity.isAlive()) continue;
+                if (entity.squaredDistanceTo(client.player) > rangeSq) continue;
+                if (VisualSettings.get("entity_boxes") || entity instanceof PlayerEntity) {
+                    drawName(entity, matrices, consumers, camera, client, ar, ag, ab);
                 }
             }
         }
 
-        if(VisualSettings.get("jump_circle")){
-            VertexConsumer lines=consumers.getBuffer(RenderLayer.getLines());
-            for(Ring ring:RINGS){
-                float progress=ring.age/28.0f;
-                float radius=(0.22f+progress*VisualSettings.slider("jump_size"));
-                int alpha=(int)(220*(1-progress));
-                VertexConsumer ringTexture=consumers.getBuffer(RenderLayer.getEntityTranslucent(JUMP_RING));
-                drawHorizontalTexture(ringTexture,matrix,ring.x-camera.x,ring.y-camera.y,ring.z-camera.z,radius,radius,alpha);
-                drawRing(lines,matrix,ring.x-camera.x,ring.y-camera.y,ring.z-camera.z,radius,ar,ag,ab,alpha,48);
-                if(progress<0.5f)drawRing(lines,matrix,ring.x-camera.x,ring.y-camera.y+0.004,ring.z-camera.z,radius*0.76f,255,255,255,(int)(100*(1-progress*2)),40);
+        if (VisualSettings.get("jump_circle") && !RINGS.isEmpty()) {
+            // Emit all textured rings before switching to the line layer.
+            for (Ring ring : RINGS) {
+                float progress = ring.age / 28.0f;
+                float radius = 0.22f + progress * VisualSettings.slider("jump_size");
+                int alpha = (int) (220 * (1 - progress));
+                VertexConsumer ringTexture = consumers.getBuffer(RenderLayer.getEntityTranslucent(JUMP_RING));
+                drawHorizontalTexture(ringTexture, matrix, ring.x - camera.x, ring.y - camera.y,
+                    ring.z - camera.z, radius, radius, alpha);
+            }
+            VertexConsumer ringLines = consumers.getBuffer(RenderLayer.getLines());
+            for (Ring ring : RINGS) {
+                float progress = ring.age / 28.0f;
+                float radius = 0.22f + progress * VisualSettings.slider("jump_size");
+                int alpha = (int) (220 * (1 - progress));
+                drawRing(ringLines, matrix, ring.x - camera.x, ring.y - camera.y, ring.z - camera.z,
+                    radius, ar, ag, ab, alpha, 48);
+                if (progress < 0.5f) {
+                    drawRing(ringLines, matrix, ring.x - camera.x, ring.y - camera.y + 0.004,
+                        ring.z - camera.z, radius * 0.76f, 255, 255, 255,
+                        (int) (100 * (1 - progress * 2)), 40);
+                }
             }
         }
 
-        if(VisualSettings.get("wet_floor")){
-            VertexConsumer surface=consumers.getBuffer(RenderLayer.getEntityTranslucent(PUDDLE));
-            VertexConsumer lines=consumers.getBuffer(RenderLayer.getLines());
-            float intensity=VisualSettings.slider("wet_intensity");
-            long time=client.world.getTime();
-            int alpha=(int)((VisualSettings.get("soft_lighting")?65:40)+intensity*(VisualSettings.get("soft_lighting")?165:120));
-            int index=0;
-            for(Puddle puddle:PUDDLES){
-                float size=0.42f+(index%4)*0.085f;
-                drawHorizontalTexture(surface,matrix,puddle.x-camera.x,puddle.y-camera.y,puddle.z-camera.z,size,size*0.68f,alpha);
-                if(VisualSettings.get("rain_ripples")&&client.world.isRaining()){
-                    float phase=((time+puddle.seed)%24)/24.0f;
-                    float radius=0.08f+phase*size*0.82f;
-                    int waveAlpha=(int)(175*(1-phase)*intensity);
-                    drawRing(lines,matrix,puddle.x-camera.x,puddle.y-camera.y+0.007,puddle.z-camera.z,radius,ar,ag,ab,waveAlpha,28);
-                    if(phase>0.45f)drawRing(lines,matrix,puddle.x-camera.x,puddle.y-camera.y+0.009,puddle.z-camera.z,radius*0.54f,220,246,255,(int)(75*(1-phase)),24);
-                } else if(index%3==0) {
-                    drawRing(lines,matrix,puddle.x-camera.x,puddle.y-camera.y+0.006,puddle.z-camera.z,size*0.43,205,242,255,(int)(70*intensity),30);
+        if (VisualSettings.get("wet_floor") && !PUDDLES.isEmpty()) {
+            float intensity = VisualSettings.slider("wet_intensity");
+            long time = client.world.getTime();
+            int alpha = (int) ((VisualSettings.get("soft_lighting") ? 65 : 40)
+                + intensity * (VisualSettings.get("soft_lighting") ? 165 : 120));
+
+            // Puddle textures are one render-layer pass; ripples are a second, separate pass.
+            VertexConsumer surface = consumers.getBuffer(RenderLayer.getEntityTranslucent(PUDDLE));
+            int index = 0;
+            for (Puddle puddle : PUDDLES) {
+                float size = 0.42f + (index % 4) * 0.085f;
+                drawHorizontalTexture(surface, matrix, puddle.x - camera.x, puddle.y - camera.y,
+                    puddle.z - camera.z, size, size * 0.68f, alpha);
+                index++;
+            }
+
+            VertexConsumer waveLines = consumers.getBuffer(RenderLayer.getLines());
+            index = 0;
+            for (Puddle puddle : PUDDLES) {
+                float size = 0.42f + (index % 4) * 0.085f;
+                if (VisualSettings.get("rain_ripples") && client.world.isRaining()) {
+                    float phase = ((time + puddle.seed) % 24) / 24.0f;
+                    float radius = 0.08f + phase * size * 0.82f;
+                    int waveAlpha = (int) (175 * (1 - phase) * intensity);
+                    drawRing(waveLines, matrix, puddle.x - camera.x, puddle.y - camera.y + 0.007,
+                        puddle.z - camera.z, radius, ar, ag, ab, waveAlpha, 28);
+                    if (phase > 0.45f) {
+                        drawRing(waveLines, matrix, puddle.x - camera.x, puddle.y - camera.y + 0.009,
+                            puddle.z - camera.z, radius * 0.54f, 220, 246, 255,
+                            (int) (75 * (1 - phase)), 24);
+                    }
+                } else if (index % 3 == 0) {
+                    drawRing(waveLines, matrix, puddle.x - camera.x, puddle.y - camera.y + 0.006,
+                        puddle.z - camera.z, size * 0.43, 205, 242, 255, (int) (70 * intensity), 30);
                 }
                 index++;
             }
         }
 
-        if(VisualSettings.get("ambient_particles")){
-            for(GlowParticle p:PARTICLES){
-                float fade=Math.max(0.0f,1.0f-p.age/(float)p.life);
-                drawGlowBillboard(p.x-camera.x,p.y-camera.y,p.z-camera.z,0.035f+0.045f*fade,ar,ag,ab,(int)(210*fade),matrices,consumers,client);
+        if (VisualSettings.get("ambient_particles") && !PARTICLES.isEmpty()) {
+            for (GlowParticle particle : PARTICLES) {
+                float fade = Math.max(0.0f, 1.0f - particle.age / (float) particle.life);
+                drawGlowBillboard(particle.x - camera.x, particle.y - camera.y, particle.z - camera.z,
+                    0.035f + 0.045f * fade, ar, ag, ab, (int) (210 * fade), matrices, consumers, client);
             }
         }
         matrices.pop();
@@ -282,23 +317,42 @@ public final class VisualRenderer {
     }
 
     public static void renderHotbar(DrawContext context) {
-        MinecraftClient client=MinecraftClient.getInstance();
-        if(!VisualSettings.get("custom_hotbar")||client.player==null||client.world==null||client.currentScreen!=null)return;
-        int screenW=context.getScaledWindowWidth(), screenH=context.getScaledWindowHeight();
-        int barW=208,barH=29,x=(screenW-barW)/2,y=screenH-34;
-        context.drawTexture(RenderLayer::getGuiTextured,HOTBAR,x,y,0,0,barW,barH,1024,144);
-        int selected=client.player.getInventory().selectedSlot;
-        float target=x+2+selected*22;
-        if(Float.isNaN(smoothSlotX))smoothSlotX=target;
-        smoothSlotX+=(target-smoothSlotX)*0.28f;
-        context.drawTexture(RenderLayer::getGuiTextured,SELECTED,(int)smoothSlotX,y+1,0,0,26,27,256,128);
-        for(int i=0;i<9;i++){
-            int sx=x+4+i*22,sy=y+4;
-            context.drawTexture(RenderLayer::getGuiTextured,SLOT,sx,sy,0,0,20,20,128,128);
-            var stack=client.player.getInventory().getStack(i);
-            if(!stack.isEmpty()){
-                context.drawItem(stack,sx+2,sy+2);
-                context.drawStackOverlay(client.textRenderer,stack,sx+2,sy+2);
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (!VisualSettings.get("custom_hotbar") || client.player == null || client.world == null || client.currentScreen != null) return;
+
+        int screenW = context.getScaledWindowWidth();
+        int screenH = context.getScaledWindowHeight();
+        int barW = 182;
+        int barH = 22;
+        int x = (screenW - barW) / 2;
+        int y = screenH - barH;
+
+        // This opaque base hides the vanilla hotbar art beneath our custom skin.
+        context.fill(x, y, x + barW, y + barH, 0xFF081321);
+        context.drawTexture(RenderLayer::getGuiTextured, HOTBAR, x, y, 0, 0, barW, barH, 1024, 144);
+
+        // Compact rounded cards reveal only our glass bar through their transparent corners.
+        for (int i = 0; i < 9; i++) {
+            int sx = x + 1 + i * 20;
+            context.drawTexture(RenderLayer::getGuiTextured, SLOT, sx, y + 1, 0, 0, 20, 20, 128, 128);
+        }
+
+        int selected = client.player.getInventory().selectedSlot;
+        float target = x - 1 + selected * 20;
+        if (Float.isNaN(smoothSlotX)) smoothSlotX = target;
+        smoothSlotX += (target - smoothSlotX) * 0.32f;
+        if (Math.abs(target - smoothSlotX) < 0.05f) smoothSlotX = target;
+        context.drawTexture(RenderLayer::getGuiTextured, SELECTED, Math.round(smoothSlotX), y - 1,
+            0, 0, 24, 24, 128, 128);
+
+        // Align icons to vanilla's exact positions, avoiding duplicated/misaligned stacks.
+        for (int i = 0; i < 9; i++) {
+            int sx = x + 3 + i * 20;
+            int sy = y + 3;
+            var stack = client.player.getInventory().getStack(i);
+            if (!stack.isEmpty()) {
+                context.drawItem(stack, sx, sy);
+                context.drawStackOverlay(client.textRenderer, stack, sx, sy);
             }
         }
     }

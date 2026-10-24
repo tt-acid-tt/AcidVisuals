@@ -92,20 +92,21 @@ tasks.register("generateAcidVisualsArt") {
             g.fill(new java.awt.geom.Ellipse2D.Double(142, 12, 104, 104))
         }
         make("gui/slot.png", 128, 128) { g, img, w, h ->
-            g.setPaint(new java.awt.GradientPaint(0, 0, new java.awt.Color(34,48,66,230), 0, h, new java.awt.Color(11,18,31,232)))
-            g.fill(rr.call(4,4,w-8,h-8,30))
-            g.setColor(new java.awt.Color(116,173,196,115)); g.setStroke(new java.awt.BasicStroke(3f)); g.draw(rr.call(4,4,w-8,h-8,30))
+            g.setPaint(new java.awt.GradientPaint(0, 0, new java.awt.Color(26,43,60,252), 0, h, new java.awt.Color(9,17,30,248)))
+            g.fill(rr.call(4,4,w-8,h-8,22))
+            g.setColor(new java.awt.Color(121,190,212,165)); g.setStroke(new java.awt.BasicStroke(2f)); g.draw(rr.call(4,4,w-8,h-8,22))
+            g.setColor(new java.awt.Color(255,255,255,28)); g.setStroke(new java.awt.BasicStroke(1f)); g.drawLine(18,10,w-18,10)
         }
         make("gui/hotbar.png", 1024, 144) { g, img, w, h ->
-            g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(12,22,37,238),0,h,new java.awt.Color(5,10,20,226)))
+            g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(12,22,37,252),0,h,new java.awt.Color(5,10,20,248)))
             g.fill(rr.call(4,4,w-8,h-8,62))
-            g.setColor(new java.awt.Color(104,224,250,190)); g.setStroke(new java.awt.BasicStroke(4f)); g.draw(rr.call(4,4,w-8,h-8,62))
-            g.setColor(new java.awt.Color(255,255,255,25)); g.drawLine(70,15,w-70,15)
+            g.setColor(new java.awt.Color(104,224,250,220)); g.setStroke(new java.awt.BasicStroke(4f)); g.draw(rr.call(4,4,w-8,h-8,62))
+            g.setColor(new java.awt.Color(255,255,255,55)); g.setStroke(new java.awt.BasicStroke(2f)); g.drawLine(70,15,w-70,15)
         }
-        make("gui/selected_slot.png", 256, 128) { g, img, w, h ->
-            g.setColor(new java.awt.Color(69,217,255,65)); g.fill(rr.call(3,3,w-6,h-6,36))
-            g.setColor(new java.awt.Color(113,239,255,255)); g.setStroke(new java.awt.BasicStroke(7f)); g.draw(rr.call(5,5,w-10,h-10,34))
-            g.setColor(new java.awt.Color(255,255,255,210)); g.setStroke(new java.awt.BasicStroke(2f)); g.draw(rr.call(10,10,w-20,h-20,28))
+        make("gui/selected_slot.png", 128, 128) { g, img, w, h ->
+            g.setColor(new java.awt.Color(69,217,255,70)); g.fill(rr.call(3,3,w-6,h-6,23))
+            g.setColor(new java.awt.Color(113,239,255,255)); g.setStroke(new java.awt.BasicStroke(4f)); g.draw(rr.call(4,4,w-8,h-8,22))
+            g.setColor(new java.awt.Color(255,255,255,220)); g.setStroke(new java.awt.BasicStroke(1.5f)); g.draw(rr.call(8,8,w-16,h-16,18))
         }
 
         make("fx/jump_ring.png", 512, 512) { g, img, w, h ->
