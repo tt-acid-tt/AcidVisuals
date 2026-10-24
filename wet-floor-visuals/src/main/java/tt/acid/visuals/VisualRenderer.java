@@ -40,6 +40,8 @@ public final class VisualRenderer {
     private static final Identifier HUD_CARD = id("textures/gui/button");
     private static final Identifier BLACK_HOLE_OBJECT = id("textures/environment/object_blackhole");
     private static final Identifier BLACK_HOLE_REFLECTIONS = id("textures/environment/sky_void_reflections");
+    private static final int SIN_TABLE_SIZE = 4096;
+    private static final float[] SIN_TABLE = buildSinTable();
     private static final Identifier[] SKY_TEXTURES = {
         id("textures/environment/sky_aurora"),
         id("textures/environment/sky_nebula"),
@@ -468,60 +470,99 @@ public final class VisualRenderer {
         return (float)Math.max(0.0, Math.min(1.0, value));
     }
 
+    private static float[] buildSinTable() {
+        float[] table = new float[SIN_TABLE_SIZE];
+        for (int i = 0; i < table.length; i++) {
+            table[i] = (float)Math.sin(i * (Math.PI * 2.0 / SIN_TABLE_SIZE));
+        }
+        return table;
+    }
+
+    private static float fastSin(double angle) {
+        double turns = angle / (Math.PI * 2.0);
+        turns -= Math.floor(turns);
+        double indexValue = turns * SIN_TABLE_SIZE;
+        int index = (int)indexValue;
+        int next = (index + 1) & (SIN_TABLE_SIZE - 1);
+        float f = (float)(indexValue - index);
+        return SIN_TABLE[index] + (SIN_TABLE[next] - SIN_TABLE[index]) * f;
+    }
+
+    private static float fastCos(double angle) {
+        return fastSin(angle + Math.PI * 0.5);
+    }
+
     private static float fract(double value) {
         return (float)(value - Math.floor(value));
     }
 
     private static void drawReflectionTile(VertexConsumer out, Matrix4f matrix, double centerX, double worldY, double centerZ,
                                            Vec3d camera, float intensity, double time, int ar, int ag, int ab) {
-        double distance = Math.sqrt((centerX - camera.x) * (centerX - camera.x)
+        double distanceXZ = Math.sqrt((centerX - camera.x) * (centerX - camera.x)
             + (centerZ - camera.z) * (centerZ - camera.z));
-        int subdivisions = distance < 22 ? 4 : (distance < 48 ? 2 : 1);
-        double centerU = Math.atan2(centerZ - camera.z, centerX - camera.x) / (Math.PI * 2.0) + time * 0.00008;
-        float waveStrength = VisualSettings.slider("reflection_wave");
-        double edgeStart = Math.max(0, Math.max(64, Math.min(304, MinecraftClient.getInstance().options.getViewDistance().getValue() * 16 + 20)) - 14);
-        float edgeFade = (float)Math.max(0, Math.min(1, (edgeStart + 14 - distance) / 14.0));
-        edgeFade = edgeFade * edgeFade * (3 - 2 * edgeFade);
+        int subdivisions = distanceXZ < 22 ? 4 : (distanceXZ < 48 ? 2 : 1);
 
+        // Calculate the mirrored sky direction and its local gradient once per block, then
+        // interpolate UVs across the face. The wave field itself is continuous in world space.
+        double dx = centerX - camera.x;
+        double dy = worldY - camera.y;
+        double dz = centerZ - camera.z;
+        double distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
+        if (distance < 0.001) return;
+        double centerU = Math.atan2(dz, dx) / (Math.PI * 2.0) + time * 0.00008;
+        double centerRy = -dy / distance;
+        double centerV = Math.acos(Math.max(-1.0, Math.min(1.0, centerRy))) / Math.PI;
+        double horizontalSq = Math.max(4.0, dx*dx + dz*dz);
+        double duDx = -dz / (horizontalSq * Math.PI * 2.0);
+        double duDz = dx / (horizontalSq * Math.PI * 2.0);
+        double vDenominator = Math.max(0.015, distance*distance * Math.sqrt(Math.max(0.0004, 1.0 - centerRy*centerRy)) * Math.PI);
+        double dvDx = centerRy * dx / vDenominator;
+        double dvDz = centerRy * dz / vDenominator;
+
+        double edgeStart = Math.max(0, Math.max(64, Math.min(304,
+            MinecraftClient.getInstance().options.getViewDistance().getValue() * 16 + 20)) - 14);
+        float edgeFade = (float)Math.max(0, Math.min(1, (edgeStart + 14 - distanceXZ) / 14.0));
+        edgeFade = edgeFade * edgeFade * (3 - 2 * edgeFade);
+        double viewCosine = Math.abs(dy) / distance;
+        float fresnel = (float)(0.13 + Math.pow(1.0 - clamp01(viewCosine), 3.1) * 0.87);
+        int alpha = (int)Math.max(0, Math.min(224,
+            (28 + intensity * 45 + fresnel * (112 + intensity * 38)) * edgeFade));
+
+        float waveStrength = VisualSettings.slider("reflection_wave");
         for (int iz = 0; iz < subdivisions; iz++) {
             for (int ix = 0; ix < subdivisions; ix++) {
                 double x0 = centerX - 0.5 + ix / (double)subdivisions;
                 double x1 = centerX - 0.5 + (ix + 1) / (double)subdivisions;
                 double z0 = centerZ - 0.5 + iz / (double)subdivisions;
                 double z1 = centerZ - 0.5 + (iz + 1) / (double)subdivisions;
-                emitReflectionVertex(out, matrix, camera, x0, z0, worldY, centerU, time, intensity, waveStrength, edgeFade, ar, ag, ab);
-                emitReflectionVertex(out, matrix, camera, x0, z1, worldY, centerU, time, intensity, waveStrength, edgeFade, ar, ag, ab);
-                emitReflectionVertex(out, matrix, camera, x1, z1, worldY, centerU, time, intensity, waveStrength, edgeFade, ar, ag, ab);
-                emitReflectionVertex(out, matrix, camera, x1, z0, worldY, centerU, time, intensity, waveStrength, edgeFade, ar, ag, ab);
+                emitReflectionVertex(out, matrix, camera, centerX, centerZ, worldY, x0, z0, centerU, centerV,
+                    duDx, duDz, dvDx, dvDz, time, intensity, waveStrength, alpha, ar, ag, ab);
+                emitReflectionVertex(out, matrix, camera, centerX, centerZ, worldY, x0, z1, centerU, centerV,
+                    duDx, duDz, dvDx, dvDz, time, intensity, waveStrength, alpha, ar, ag, ab);
+                emitReflectionVertex(out, matrix, camera, centerX, centerZ, worldY, x1, z1, centerU, centerV,
+                    duDx, duDz, dvDx, dvDz, time, intensity, waveStrength, alpha, ar, ag, ab);
+                emitReflectionVertex(out, matrix, camera, centerX, centerZ, worldY, x1, z0, centerU, centerV,
+                    duDx, duDz, dvDx, dvDz, time, intensity, waveStrength, alpha, ar, ag, ab);
             }
         }
     }
 
     private static void emitReflectionVertex(VertexConsumer out, Matrix4f matrix, Vec3d camera,
-                                             double wx, double wz, double baseY, double centerU, double time,
-                                             float intensity, float waveStrength, float edgeFade,
+                                             double centerX, double centerZ, double baseY,
+                                             double wx, double wz, double centerU, double centerV,
+                                             double duDx, double duDz, double dvDx, double dvDz, double time,
+                                             float intensity, float waveStrength, int alpha,
                                              int ar, int ag, int ab) {
-        double waveA = Math.sin(wx * 0.73 + wz * 0.37 + time * 0.075);
-        double waveB = Math.cos(wx * 0.29 - wz * 0.81 + time * 0.052);
-        double crossWave = Math.sin((wx + wz) * 0.91 - time * 0.047);
+        double waveA = fastSin(wx * 0.73 + wz * 0.37 + time * 0.075);
+        double waveB = fastCos(wx * 0.29 - wz * 0.81 + time * 0.052);
+        double crossWave = fastSin((wx + wz) * 0.91 - time * 0.047);
         double wy = baseY + (waveA * waveB * 0.0032 + crossWave * 0.0018) * waveStrength * intensity;
-        double dx = wx - camera.x;
-        double dy = wy - camera.y;
-        double dz = wz - camera.z;
-        double distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
-        if (distance < 0.001) return;
 
-        double rx = dx / distance;
-        double ry = -dy / distance;
-        double rz = dz / distance;
-        double u = Math.atan2(rz, rx) / (Math.PI * 2.0) + time * 0.00008 + waveA * 0.012 * waveStrength;
-        while (u - centerU > 0.5) u -= 1.0;
-        while (u - centerU < -0.5) u += 1.0;
-        double v = clamp01(Math.acos(Math.max(-1.0, Math.min(1.0, ry))) / Math.PI + (waveB + crossWave) * 0.006 * waveStrength);
-
-        double viewCosine = Math.abs(dy) / distance;
-        float fresnel = (float)(0.13 + Math.pow(1.0 - clamp01(viewCosine), 3.1) * 0.87);
-        int alpha = (int)Math.max(0, Math.min(224, (28 + intensity * 45 + fresnel * (112 + intensity * 38)) * edgeFade));
+        double localX = wx - centerX;
+        double localZ = wz - centerZ;
+        double u = centerU + localX * duDx + localZ * duDz + waveA * 0.012 * waveStrength;
+        double v = clamp01(centerV + localX * dvDx + localZ * dvDz
+            + (waveB + crossWave) * 0.006 * waveStrength);
         int tintR = 242 + ar * 13 / 255;
         int tintG = 242 + ag * 13 / 255;
         int tintB = 242 + ab * 13 / 255;
