@@ -147,8 +147,6 @@ tasks.register("generateAcidVisualsArt") {
             g.fillRect(0,0,w,h)
             for (int i=0; i<5; i++) {
                 float yy = 44f + i*104f
-                g.setPaint(new java.awt.GradientPaint(0f,yy,new java.awt.Color(255,255,255,0),
-                    (float)w,yy+42f,new java.awt.Color(206,240,255,0)))
                 g.setColor(new java.awt.Color(209,242,255,Math.max(10,42-i*5)))
                 g.setStroke(new java.awt.BasicStroke(3f + (i%2)*2f, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND))
                 def reflection = new java.awt.geom.Path2D.Double()
