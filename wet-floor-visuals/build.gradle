@@ -146,7 +146,7 @@ tasks.register("generateAcidVisualsArt") {
                 g.draw(new java.awt.geom.Arc2D.Double(x,-270,420,760,190,160,java.awt.geom.Arc2D.OPEN))
             }
             for(int i=0;i<550;i++){
-                int x=rng.nextInt(w),y=rng.nextInt(h/2)
+                int x=rng.nextInt(w),y=rng.nextInt(h.intdiv(2))
                 g.setColor(new java.awt.Color(210,241,255,20+rng.nextInt(28)))
                 g.fillOval(x,y,1+rng.nextInt(3),1+rng.nextInt(3))
             }
@@ -178,7 +178,7 @@ tasks.register("generateAcidVisualsArt") {
             fg.setColor(new java.awt.Color(255,255,255,255))
             String str=String.valueOf(ch)
             int sw=fm.stringWidth(str)
-            int sx=cellX+Math.max(1,(64-sw)/2)
+            int sx=cellX+Math.max(1,(64-sw).intdiv(2))
             int baseline=cellY+53
             if (!Character.isISOControl(ch)) fg.drawString(str,sx,baseline)
         }
