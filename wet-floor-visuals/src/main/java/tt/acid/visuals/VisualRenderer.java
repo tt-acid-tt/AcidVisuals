@@ -120,7 +120,7 @@ public final class VisualRenderer {
                 if(Math.abs(top.getY()-player.getY())>3.4) continue;
                 BlockPos floor=top.down();
                 BlockState state=client.world.getBlockState(floor);
-                if(state.isOpaqueFullCube(client.world,floor) && client.world.getBlockState(top).isAir()){
+                if(state.isOpaqueFullCube() && client.world.getBlockState(top).isAir()){
                     PUDDLES.add(new Puddle(top.getX()+0.5,top.getY()+0.018,top.getZ()+0.5,RANDOM.nextInt(120)));
                     if(PUDDLES.size()>=42)return;
                 }
@@ -285,7 +285,7 @@ public final class VisualRenderer {
         int screenW=context.getScaledWindowWidth(), screenH=context.getScaledWindowHeight();
         int barW=208,barH=29,x=(screenW-barW)/2,y=screenH-34;
         context.drawTexture(RenderLayer::getGuiTextured,HOTBAR,x,y,0,0,barW,barH,1024,144);
-        int selected=client.player.getInventory().getSelectedSlot();
+        int selected=client.player.getInventory().selectedSlot;
         float target=x+2+selected*22;
         if(Float.isNaN(smoothSlotX))smoothSlotX=target;
         smoothSlotX+=(target-smoothSlotX)*0.28f;
