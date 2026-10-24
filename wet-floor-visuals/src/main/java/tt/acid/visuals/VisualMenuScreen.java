@@ -311,7 +311,7 @@ public final class VisualMenuScreen extends Screen {
                 }
             }
         }
-        if(activeTab==4){
+        if(activeTab==5){
             for(int i=0;i<3;i++){
                 int x=contentX(),y=contentY()+i*91;
                 if(mouseX>=x&&mouseX<=x+contentW()&&mouseY>=y&&mouseY<=y+76){VisualSettings.applyPreset(i);return true;}
