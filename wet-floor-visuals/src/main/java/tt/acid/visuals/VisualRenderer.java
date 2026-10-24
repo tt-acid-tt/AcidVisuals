@@ -64,6 +64,7 @@ public final class VisualRenderer {
     private static boolean surfaceScanRequested;
     private static int surfaceScanDelay;
     private static final float[] KEY_ANIMATION = new float[6];
+    private static final float[] KEY_RENDER_ANIMATION = new float[6];
     private static final float[] KEY_TARGETS = new float[6];
     private static LivingEntity lastHudTarget;
     private static int targetHoldTicks;
@@ -141,8 +142,10 @@ public final class VisualRenderer {
     }
 
     public static void requestSurfaceScan() {
-        surfaceScanRequested = true;
-        surfaceScanDelay = 2;
+        if (!surfaceScanRequested) {
+            surfaceScanRequested = true;
+            surfaceScanDelay = 2;
+        }
     }
 
     private static void tickHudAnimations(MinecraftClient client) {
@@ -808,14 +811,21 @@ public final class VisualRenderer {
         if (VisualSettings.get("hud_keystrokes")) {
             int kx = 12;
             int ky = screenH - 74;
-            drawHudKey(context, kx + 24, ky, "W", KEY_ANIMATION[0], accent);
-            drawHudKey(context, kx, ky + 24, "A", KEY_ANIMATION[1], accent);
-            drawHudKey(context, kx + 24, ky + 24, "S", KEY_ANIMATION[2], accent);
-            drawHudKey(context, kx + 48, ky + 24, "D", KEY_ANIMATION[3], accent);
-            drawHudKey(context, kx + 82, ky + 24, "L", KEY_ANIMATION[4], accent);
-            drawHudKey(context, kx + 106, ky + 24, "R", KEY_ANIMATION[5], accent);
+            drawHudKey(context, kx + 24, ky, "W", renderKeyAnimation(0), accent);
+            drawHudKey(context, kx, ky + 24, "A", renderKeyAnimation(1), accent);
+            drawHudKey(context, kx + 24, ky + 24, "S", renderKeyAnimation(2), accent);
+            drawHudKey(context, kx + 48, ky + 24, "D", renderKeyAnimation(3), accent);
+            drawHudKey(context, kx + 82, ky + 24, "L", renderKeyAnimation(4), accent);
+            drawHudKey(context, kx + 106, ky + 24, "R", renderKeyAnimation(5), accent);
             context.drawTextWithShadow(client.textRenderer, hudText("KEYS"), kx + 3, ky + 52, 0xFF91A6B6);
         }
+    }
+
+    private static float renderKeyAnimation(int index) {
+        float target = KEY_ANIMATION[index];
+        KEY_RENDER_ANIMATION[index] += (target - KEY_RENDER_ANIMATION[index]) * 0.28f;
+        if (Math.abs(target - KEY_RENDER_ANIMATION[index]) < 0.003f) KEY_RENDER_ANIMATION[index] = target;
+        return KEY_RENDER_ANIMATION[index];
     }
 
     private static Text hudText(String value) {
