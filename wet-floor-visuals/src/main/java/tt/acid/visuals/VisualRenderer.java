@@ -451,12 +451,12 @@ public final class VisualRenderer {
 
         // This opaque base hides the vanilla hotbar art beneath our custom skin.
         context.fill(x, y, x + barW, y + barH, 0xFF2F343C);
-        context.drawTexture(RenderLayer::getGuiTextured, HOTBAR, x, y, 0, 0, barW, barH, 1456, 176);
+        context.drawTexture(RenderLayer::getGuiTextured, HOTBAR, x, y, 0, 0, barW, barH, 1456, 176, 1456, 176);
 
         // Nine matte graphite slots, drawn square rather than stretching pill-shaped art.
         for (int i = 0; i < 9; i++) {
             int sx = x + 1 + i * 20;
-            context.drawTexture(RenderLayer::getGuiTextured, SLOT, sx, y + 1, 0, 0, 20, 20, 256, 256);
+            context.drawTexture(RenderLayer::getGuiTextured, SLOT, sx, y + 1, 0, 0, 20, 20, 256, 256, 256, 256);
         }
 
         int selected = client.player.getInventory().selectedSlot;
@@ -465,7 +465,7 @@ public final class VisualRenderer {
         smoothSlotX += (target - smoothSlotX) * 0.32f;
         if (Math.abs(target - smoothSlotX) < 0.05f) smoothSlotX = target;
         context.drawTexture(RenderLayer::getGuiTextured, SELECTED, Math.round(smoothSlotX), y + 1,
-            0, 0, 20, 20, 256, 256);
+            0, 0, 20, 20, 256, 256, 256, 256);
 
         // Align icons to vanilla's exact positions, avoiding duplicated/misaligned stacks.
         for (int i = 0; i < 9; i++) {

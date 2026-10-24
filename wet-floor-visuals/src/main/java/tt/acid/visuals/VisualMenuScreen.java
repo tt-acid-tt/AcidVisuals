@@ -31,7 +31,9 @@ public final class VisualMenuScreen extends Screen {
     }
 
     private void texture(DrawContext context, Identifier texture, int x, int y, int w, int h, int tw, int th) {
-        context.drawTexture(RenderLayer::getGuiTextured, texture, x, y, 0, 0, w, h, tw, th);
+        // Draw the complete source texture into the destination rectangle. The 10-argument
+        // overload treats destination width/height as source-region size and clips high-res art.
+        context.drawTexture(RenderLayer::getGuiTextured, texture, x, y, 0, 0, w, h, tw, th, tw, th);
     }
 
     private int px() { return (width - Math.min(790, width - 24)) / 2; }
