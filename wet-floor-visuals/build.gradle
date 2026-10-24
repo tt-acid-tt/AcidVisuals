@@ -37,6 +37,34 @@ tasks.register("generateAcidVisualsArt") {
             g.setRenderingHint(java.awt.RenderingHints.KEY_STROKE_CONTROL, java.awt.RenderingHints.VALUE_STROKE_PURE)
             paint.call(g, image, w, h)
             g.dispose()
+
+            // Equirectangular sky textures must meet cleanly at U=0/U=1. Blend a thin
+            // symmetric strip at both sides so edge pixels match and the transition is soft.
+            if (path.startsWith("environment/sky_")) {
+                int band = Math.min(112, w.intdiv(8))
+                def source = new java.awt.image.BufferedImage(w, h, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+                def copyGraphics = source.createGraphics()
+                copyGraphics.drawImage(image, 0, 0, null)
+                copyGraphics.dispose()
+                for (int x = 0; x < band; x++) {
+                    double weight = (band - x) / (double)band
+                    for (int y = 0; y < h; y++) {
+                        int left = source.getRGB(x, y)
+                        int right = source.getRGB(w - 1 - x, y)
+                        int la = (left >>> 24) & 255, lr = (left >>> 16) & 255, lg = (left >>> 8) & 255, lb = left & 255
+                        int ra = (right >>> 24) & 255, rr = (right >>> 16) & 255, rg = (right >>> 8) & 255, rb = right & 255
+                        int aa = (int)Math.round(la * (1.0 - weight) + ((la + ra) * 0.5) * weight)
+                        int ar = (int)Math.round(lr * (1.0 - weight) + ((lr + rr) * 0.5) * weight)
+                        int ag = (int)Math.round(lg * (1.0 - weight) + ((lg + rg) * 0.5) * weight)
+                        int ab = (int)Math.round(lb * (1.0 - weight) + ((lb + rb) * 0.5) * weight)
+                        int br = (int)Math.round(ra * (1.0 - weight) + ((lr + rr) * 0.5) * weight)
+                        int bg = (int)Math.round(rg * (1.0 - weight) + ((lg + rg) * 0.5) * weight)
+                        int bb = (int)Math.round(rb * (1.0 - weight) + ((lb + rb) * 0.5) * weight)
+                        image.setRGB(x, y, (aa << 24) | (ar << 16) | (ag << 8) | ab)
+                        image.setRGB(w - 1 - x, y, (aa << 24) | (br << 16) | (bg << 8) | bb)
+                    }
+                }
+            }
             javax.imageio.ImageIO.write(image, "png", file)
         }
         def rr = { x, y, w, h, r -> new java.awt.geom.RoundRectangle2D.Double(x.doubleValue(), y.doubleValue(), w.doubleValue(), h.doubleValue(), r.doubleValue(), r.doubleValue()) }
@@ -237,21 +265,7 @@ tasks.register("generateAcidVisualsArt") {
                 }
 
                 // Extra geometry makes each new panorama clearly distinct, not a simple recolor.
-                if (style == 4) {
-                    float bx = w * 0.52f, by = h * 0.48f, br = h * 0.21f;
-                    g.setPaint(new java.awt.RadialGradientPaint(bx, by, br,
-                        [0f,0.48f,0.68f,0.82f,1f] as float[],
-                        [new java.awt.Color(0,0,3,255), new java.awt.Color(0,0,7,255),
-                         new java.awt.Color(11,6,29,255), new java.awt.Color(184,77,255,190),
-                         new java.awt.Color(184,77,255,0)] as java.awt.Color[]))
-                    g.fill(new java.awt.geom.Ellipse2D.Double(bx-br,by-br,br*2,br*2))
-                    g.setColor(new java.awt.Color(255,219,255,150))
-                    g.setStroke(new java.awt.BasicStroke(5f))
-                    g.draw(new java.awt.geom.Ellipse2D.Double(bx-br*1.1,by-br*1.1,br*2.2,br*2.2))
-                    g.setColor(new java.awt.Color(190,136,255,65))
-                    g.setStroke(new java.awt.BasicStroke(28f))
-                    g.draw(new java.awt.geom.Ellipse2D.Double(bx-br*1.42,by-br*1.42,br*2.84,br*2.84))
-                } else if (style == 5) {
+                if (style == 5) {
                     for (int i = 0; i < 19; i++) {
                         float yy = (float)(h * (0.28 + i * 0.027));
                         g.setColor(new java.awt.Color(80,255,194,28 + i % 4 * 9))
@@ -314,6 +328,101 @@ tasks.register("generateAcidVisualsArt") {
         make("environment/sky_supernova.png", 2048, 1024, skyPainter(6))
         make("environment/sky_cyber.png", 2048, 1024, skyPainter(7))
 
+        // The black hole and its accretion disk are a separate transparent object layer.
+        // The renderer rotates this layer independently from the background panorama.
+        make("environment/object_blackhole.png", 2048, 1024) { g, img, w, h ->
+            double cx = w * 0.5, cy = h * 0.48
+            g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON)
+            g.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING, java.awt.RenderingHints.VALUE_RENDER_QUALITY)
+
+            // Broad purple-blue gravitational glow and a thin hot inner rim.
+            float glowRadius = (float)(h * 0.285)
+            g.setPaint(new java.awt.RadialGradientPaint((float)cx, (float)cy, glowRadius,
+                [0f,0.28f,0.52f,0.76f,1f] as float[],
+                [new java.awt.Color(0,0,0,0), new java.awt.Color(8,5,25,0),
+                 new java.awt.Color(97,52,255,68), new java.awt.Color(48,165,255,45),
+                 new java.awt.Color(55,128,255,0)] as java.awt.Color[]))
+            g.fill(new java.awt.geom.Ellipse2D.Double(cx-glowRadius, cy-glowRadius, glowRadius*2, glowRadius*2))
+
+            // Layered, asymmetrical accretion disk with a bright forward arc.
+            for (int i = 0; i < 52; i++) {
+                double f = i / 51.0
+                double rx = 118 + f * 420
+                double ry = 29 + f * 123
+                int alpha = (int)(8 + 62 * (1.0 - f) * (0.55 + 0.45 * Math.sin(i * 0.29)))
+                int red = 76 + (int)(179 * (1.0 - f))
+                int green = 60 + (int)(155 * (1.0 - f))
+                int blue = 255
+                g.setColor(new java.awt.Color(red, green, blue, Math.max(0, Math.min(255, alpha))))
+                g.setStroke(new java.awt.BasicStroke((float)(2.0 + (1.0-f)*4.5), java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND))
+                g.draw(new java.awt.geom.Arc2D.Double(cx-rx, cy-ry, rx*2, ry*2, 5+i*0.42, 165+i%7*2, java.awt.geom.Arc2D.OPEN))
+                g.setColor(new java.awt.Color(255, 146+(int)(85*(1-f)), 224, Math.max(0, Math.min(255, alpha+10))))
+                g.draw(new java.awt.geom.Arc2D.Double(cx-rx*0.96, cy-ry*0.90, rx*1.92, ry*1.8, 185+i*0.23, 135+i%9*3, java.awt.geom.Arc2D.OPEN))
+            }
+
+            // Infalling filaments spiral inward; the UV animation makes them orbit and pull inward.
+            for (int i = 0; i < 170; i++) {
+                double startAngle = i * Math.PI * 2.0 / 170.0
+                double startR = 270 + (i % 13) * 11
+                java.awt.geom.Path2D.Double filament = new java.awt.geom.Path2D.Double()
+                boolean started = false
+                for (int step = 0; step <= 24; step++) {
+                    double t = step / 24.0
+                    double r = startR * (1.0 - 0.79*t)
+                    double a = startAngle + t * (1.7 + (i%5)*0.18)
+                    double px = cx + Math.cos(a) * r * 1.75
+                    double py = cy + Math.sin(a) * r * 0.70
+                    if (!started) { filament.moveTo(px, py); started = true }
+                    else filament.lineTo(px, py)
+                }
+                int alpha = 18 + (i % 6) * 7
+                if (i % 3 == 0) g.setColor(new java.awt.Color(108, 217, 255, alpha))
+                else if (i % 3 == 1) g.setColor(new java.awt.Color(211, 98, 255, alpha))
+                else g.setColor(new java.awt.Color(255, 185, 226, alpha))
+                g.setStroke(new java.awt.BasicStroke((float)(1.4 + i % 4 * 0.55), java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND))
+                g.draw(filament)
+            }
+
+            // Distant stars bend into short curved trails around the event horizon.
+            def holeRng = new java.util.Random(554812L)
+            for (int i = 0; i < 430; i++) {
+                double a = holeRng.nextDouble() * Math.PI * 2.0
+                double r = 205 + holeRng.nextDouble() * 320
+                double x = cx + Math.cos(a) * r * 1.8
+                double y = cy + Math.sin(a) * r * 0.75
+                int alpha = 30 + holeRng.nextInt(145)
+                int size = holeRng.nextInt(100) < 9 ? 3 : 1
+                g.setColor(new java.awt.Color(210, 225 + holeRng.nextInt(30), 255, alpha))
+                g.fill(new java.awt.geom.Ellipse2D.Double(x, y, size, size))
+                if (i % 5 == 0) {
+                    g.setStroke(new java.awt.BasicStroke(1.1f))
+                    g.drawLine((int)x, (int)y, (int)(x - Math.cos(a+0.5)*18), (int)(y - Math.sin(a+0.5)*8))
+                }
+            }
+
+            // Dark central shadow with a razor-thin luminous edge.
+            double core = 102
+            g.setPaint(new java.awt.RadialGradientPaint((float)cx, (float)cy, (float)(core*1.2),
+                [0f,0.74f,0.88f,1f] as float[],
+                [new java.awt.Color(0,0,4,255), new java.awt.Color(0,0,7,255),
+                 new java.awt.Color(6,2,20,245), new java.awt.Color(198,117,255,0)] as java.awt.Color[]))
+            g.fill(new java.awt.geom.Ellipse2D.Double(cx-core*1.2, cy-core*1.2, core*2.4, core*2.4))
+            g.setColor(new java.awt.Color(255, 213, 255, 210))
+            g.setStroke(new java.awt.BasicStroke(3.5f))
+            g.draw(new java.awt.geom.Ellipse2D.Double(cx-core, cy-core, core*2, core*2))
+            g.setColor(new java.awt.Color(255, 255, 255, 115))
+            g.setStroke(new java.awt.BasicStroke(1.1f))
+            g.draw(new java.awt.geom.Ellipse2D.Double(cx-core-3, cy-core-3, core*2+6, core*2+6))
+        }
+
+        // Reflect the complete void sky plus the separate object on wet surfaces.
+        def voidBase = javax.imageio.ImageIO.read(new File(root, "textures/environment/sky_void.png"))
+        def voidObject = javax.imageio.ImageIO.read(new File(root, "textures/environment/object_blackhole.png"))
+        make("environment/sky_void_reflections.png", 2048, 1024) { g, img, w, h ->
+            g.drawImage(voidBase, 0, 0, w, h, null)
+            g.drawImage(voidObject, 0, 0, w, h, null)
+        }
+
         def glyphSet = new LinkedHashSet<Character>()
         for (int cp=32; cp<=126; cp++) glyphSet.add((char)cp)
         [0x00A0,0x00B0,0x00B7,0x00D7,0x00F7,0x00DF,0x00E9,0x00E4,0x00F6,0x00FC,0x2013,0x2014,0x2022,0x2190,0x2191,0x2192,0x2193,0x2194,0x221E,0x2248,0x2713,0x2116,0x20BD].each { glyphSet.add((char)(int)it) }
@@ -325,21 +434,22 @@ tasks.register("generateAcidVisualsArt") {
         def glyphs = new ArrayList<Character>(glyphSet).take(256)
         while (glyphs.size()<256) glyphs.add((char)(0x5000 + glyphs.size()))
         File atlasFile = new File(root, "textures/font/glyphs.png")
-        def atlas = new java.awt.image.BufferedImage(1024,1024,java.awt.image.BufferedImage.TYPE_INT_ARGB)
+        int cellW = 48, cellH = 64
+        def atlas = new java.awt.image.BufferedImage(cellW*16,cellH*16,java.awt.image.BufferedImage.TYPE_INT_ARGB)
         def fg = atlas.createGraphics()
         fg.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON)
         fg.setRenderingHint(java.awt.RenderingHints.KEY_TEXT_ANTIALIASING, java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
         fg.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING, java.awt.RenderingHints.VALUE_RENDER_QUALITY)
-        fg.setFont(new java.awt.Font("DejaVu Sans", java.awt.Font.BOLD, 50))
+        fg.setFont(new java.awt.Font("DejaVu Sans", java.awt.Font.BOLD, 42))
         def fm = fg.getFontMetrics()
         for(int i=0;i<256;i++){
             char ch = glyphs.get(i)
-            int cellX=(i%16)*64, cellY=(i.intdiv(16))*64
+            int cellX=(i%16)*cellW, cellY=(i.intdiv(16))*cellH
             fg.setColor(new java.awt.Color(255,255,255,255))
             String str=String.valueOf(ch)
             int sw=fm.stringWidth(str)
-            int sx=cellX+Math.max(1,(64-sw).intdiv(2))
-            int baseline=cellY+53
+            int sx=cellX+Math.max(0,(cellW-sw).intdiv(2))
+            int baseline=cellY+50
             if (!Character.isISOControl(ch)) fg.drawString(str,sx,baseline)
         }
         fg.dispose()
