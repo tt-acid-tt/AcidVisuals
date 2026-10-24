@@ -1,0 +1,211 @@
+import groovy.json.JsonOutput
+
+plugins {
+    id 'fabric-loom' version "${loom_version}"
+}
+
+version = project.mod_version
+group = project.maven_group
+base { archivesName = project.archives_base_name }
+
+repositories {}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
+
+def generatedArt = layout.buildDirectory.dir("generated/acidvisuals-resources")
+sourceSets.main.resources.srcDir(generatedArt)
+
+tasks.register("generateAcidVisualsArt") {
+    outputs.dir(generatedArt)
+    doLast {
+        File root = generatedArt.get().dir("assets/acidvisuals").asFile
+        [new File(root, "textures/gui"), new File(root, "textures/fx"), new File(root, "textures/environment"), new File(root, "textures/font"), new File(root, "font")].each { it.mkdirs() }
+
+        def make = { String path, int w, int h, Closure paint ->
+            File file = new File(root, "textures/" + path)
+            file.parentFile.mkdirs()
+            def image = new java.awt.image.BufferedImage(w, h, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+            def g = image.createGraphics()
+            g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON)
+            g.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING, java.awt.RenderingHints.VALUE_RENDER_QUALITY)
+            g.setRenderingHint(java.awt.RenderingHints.KEY_STROKE_CONTROL, java.awt.RenderingHints.VALUE_STROKE_PURE)
+            paint.call(g, image, w, h)
+            g.dispose()
+            javax.imageio.ImageIO.write(image, "png", file)
+        }
+        def rr = { double x, double y, double w, double h, double r -> new java.awt.geom.RoundRectangle2D.Double(x, y, w, h, r, r) }
+        def rng = new java.util.Random(240126L)
+
+        make("gui/panel.png", 1024, 768) { g, img, w, h ->
+            g.setPaint(new java.awt.GradientPaint(0, 0, new java.awt.Color(18, 25, 38, 246), w, h, new java.awt.Color(5, 10, 20, 238)))
+            g.fill(rr.call(4, 4, w-8, h-8, 74))
+            for (int i = 0; i < 28; i++) {
+                g.setColor(new java.awt.Color(77, 195, 224, Math.max(2, 25-i)))
+                g.setStroke(new java.awt.BasicStroke(1.2f + i*0.10f))
+                g.draw(rr.call(8+i, 8+i, w-16-2*i, h-16-2*i, 70))
+            }
+            g.setColor(new java.awt.Color(114, 228, 255, 190))
+            g.setStroke(new java.awt.BasicStroke(3.0f))
+            g.draw(rr.call(5, 5, w-10, h-10, 68))
+            g.setPaint(new java.awt.GradientPaint(40, 24, new java.awt.Color(125, 244, 255, 115), w*0.75f, 80, new java.awt.Color(125, 244, 255, 0)))
+            g.fill(rr.call(28, 18, w-56, 8, 8))
+            for (int i = 0; i < 1800; i++) {
+                int x = rng.nextInt(w), y = rng.nextInt(h)
+                g.setColor(new java.awt.Color(210, 242, 255, rng.nextInt(13)))
+                g.fillRect(x, y, 2, 2)
+            }
+        }
+
+        def buttonPainter = { boolean hover -> { g, img, w, h ->
+            g.setPaint(new java.awt.GradientPaint(0, 0,
+                hover ? new java.awt.Color(41, 91, 112, 248) : new java.awt.Color(28, 43, 61, 241),
+                0, h, hover ? new java.awt.Color(21, 53, 73, 248) : new java.awt.Color(13, 23, 38, 241)))
+            g.fill(rr.call(3, 3, w-6, h-6, 42))
+            g.setColor(hover ? new java.awt.Color(132, 239, 255, 230) : new java.awt.Color(105, 158, 182, 140))
+            g.setStroke(new java.awt.BasicStroke(3f))
+            g.draw(rr.call(3, 3, w-6, h-6, 42))
+            g.setColor(new java.awt.Color(255, 255, 255, 30))
+            g.setStroke(new java.awt.BasicStroke(2f))
+            g.drawLine(24, 9, w-24, 9)
+        } }
+        make("gui/button.png", 512, 128, buttonPainter(false))
+        make("gui/button_hover.png", 512, 128, buttonPainter(true))
+
+        make("gui/toggle_off.png", 256, 128) { g, img, w, h ->
+            g.setPaint(new java.awt.GradientPaint(0, 0, new java.awt.Color(34, 46, 61), w, h, new java.awt.Color(13, 22, 35)))
+            g.fill(rr.call(3, 3, w-6, h-6, 100))
+            g.setColor(new java.awt.Color(119, 150, 176, 180)); g.setStroke(new java.awt.BasicStroke(3f)); g.draw(rr.call(3, 3, w-6, h-6, 100))
+            g.setPaint(new java.awt.RadialGradientPaint(62, 64, 52, new float[]{0f,1f}, new java.awt.Color[]{new java.awt.Color(232,245,252),new java.awt.Color(132,157,174)}))
+            g.fill(new java.awt.geom.Ellipse2D.Double(10, 12, 104, 104))
+        }
+        make("gui/toggle_on.png", 256, 128) { g, img, w, h ->
+            g.setPaint(new java.awt.GradientPaint(0, 0, new java.awt.Color(93, 236, 255), w, h, new java.awt.Color(51, 115, 234)))
+            g.fill(rr.call(3, 3, w-6, h-6, 100))
+            g.setColor(new java.awt.Color(175, 250, 255, 235)); g.setStroke(new java.awt.BasicStroke(3f)); g.draw(rr.call(3, 3, w-6, h-6, 100))
+            g.setPaint(new java.awt.RadialGradientPaint(196, 64, 60, new float[]{0f,1f}, new java.awt.Color[]{new java.awt.Color(255,255,255,255),new java.awt.Color(205,250,255,235)}))
+            g.fill(new java.awt.geom.Ellipse2D.Double(142, 12, 104, 104))
+        }
+        make("gui/slot.png", 128, 128) { g, img, w, h ->
+            g.setPaint(new java.awt.GradientPaint(0, 0, new java.awt.Color(34,48,66,230), 0, h, new java.awt.Color(11,18,31,232)))
+            g.fill(rr.call(4,4,w-8,h-8,30))
+            g.setColor(new java.awt.Color(116,173,196,115)); g.setStroke(new java.awt.BasicStroke(3f)); g.draw(rr.call(4,4,w-8,h-8,30))
+        }
+        make("gui/hotbar.png", 1024, 144) { g, img, w, h ->
+            g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(12,22,37,238),0,h,new java.awt.Color(5,10,20,226)))
+            g.fill(rr.call(4,4,w-8,h-8,62))
+            g.setColor(new java.awt.Color(104,224,250,190)); g.setStroke(new java.awt.BasicStroke(4f)); g.draw(rr.call(4,4,w-8,h-8,62))
+            g.setColor(new java.awt.Color(255,255,255,25)); g.drawLine(70,15,w-70,15)
+        }
+        make("gui/selected_slot.png", 256, 128) { g, img, w, h ->
+            g.setColor(new java.awt.Color(69,217,255,65)); g.fill(rr.call(3,3,w-6,h-6,36))
+            g.setColor(new java.awt.Color(113,239,255,255)); g.setStroke(new java.awt.BasicStroke(7f)); g.draw(rr.call(5,5,w-10,h-10,34))
+            g.setColor(new java.awt.Color(255,255,255,210)); g.setStroke(new java.awt.BasicStroke(2f)); g.draw(rr.call(10,10,w-20,h-20,28))
+        }
+
+        make("fx/jump_ring.png", 512, 512) { g, img, w, h ->
+            g.setPaint(new java.awt.RadialGradientPaint(256,256,250,new float[]{0f,.55f,.78f,1f},new java.awt.Color[]{
+                new java.awt.Color(52,205,255,0),new java.awt.Color(65,222,255,0),
+                new java.awt.Color(82,236,255,100),new java.awt.Color(35,131,255,0)}))
+            g.fillOval(5,5,502,502)
+            g.setColor(new java.awt.Color(100,238,255,220)); g.setStroke(new java.awt.BasicStroke(13f)); g.draw(new java.awt.geom.Ellipse2D.Double(28,28,456,456))
+            g.setColor(new java.awt.Color(255,255,255,150)); g.setStroke(new java.awt.BasicStroke(4f)); g.draw(new java.awt.geom.Ellipse2D.Double(48,48,416,416))
+            for(int i=0;i<12;i++){ double a=i*Math.PI/6.0; double cx=256+220*Math.cos(a), cy=256+220*Math.sin(a); g.setColor(new java.awt.Color(195,251,255,150)); g.fill(new java.awt.geom.Ellipse2D.Double(cx-4,cy-4,8,8)) }
+        }
+        make("fx/orb.png", 256, 256) { g, img, w, h ->
+            g.setPaint(new java.awt.RadialGradientPaint(128,128,124,new float[]{0f,.24f,.52f,.82f,1f},new java.awt.Color[]{
+                new java.awt.Color(255,255,255,255),new java.awt.Color(146,251,255,240),
+                new java.awt.Color(54,206,255,170),new java.awt.Color(51,128,255,50),new java.awt.Color(40,80,255,0)}))
+            g.fillOval(0,0,w,h)
+        }
+        make("fx/puddle.png", 512, 384) { g, img, w, h ->
+            g.setPaint(new java.awt.RadialGradientPaint(256,192,245,new float[]{0f,.42f,.78f,1f},new java.awt.Color[]{
+                new java.awt.Color(133,230,255,115),new java.awt.Color(36,119,157,105),
+                new java.awt.Color(18,41,62,85),new java.awt.Color(9,20,34,0)}))
+            g.fill(new java.awt.geom.Ellipse2D.Double(5,30,502,324))
+            g.setColor(new java.awt.Color(235,252,255,105)); g.setStroke(new java.awt.BasicStroke(7f))
+            g.draw(new java.awt.geom.Arc2D.Double(55,64,402,240,200,110,java.awt.geom.Arc2D.OPEN))
+            g.setColor(new java.awt.Color(100,227,255,90)); g.setStroke(new java.awt.BasicStroke(4f))
+            for(int i=0;i<7;i++) g.draw(new java.awt.geom.Arc2D.Double(35+i*8,52+i*5,442-i*16,278-i*10,14,150,java.awt.geom.Arc2D.OPEN))
+            g.setPaint(new java.awt.GradientPaint(0,85,new java.awt.Color(255,255,255,95),0,205,new java.awt.Color(255,255,255,0)))
+            g.fill(new java.awt.geom.Ellipse2D.Double(42,65,428,130))
+        }
+
+        make("environment/sky_overlay.png", 2048, 1024) { g, img, w, h ->
+            g.setPaint(new java.awt.GradientPaint(0,0,new java.awt.Color(14,31,67,28),0,h,new java.awt.Color(17,42,75,0)))
+            g.fillRect(0,0,w,h)
+            for(int i=0;i<12;i++){
+                int x=i*190-120
+                g.setColor(new java.awt.Color(42+(i*9)%70, 190+(i*5)%60, 255, 11+(i%4)*4))
+                g.setStroke(new java.awt.BasicStroke(40+i%5*18))
+                g.draw(new java.awt.geom.Arc2D.Double(x,-270,420,760,190,160,java.awt.geom.Arc2D.OPEN))
+            }
+            for(int i=0;i<550;i++){
+                int x=rng.nextInt(w),y=rng.nextInt(h/2)
+                g.setColor(new java.awt.Color(210,241,255,20+rng.nextInt(28)))
+                g.fillOval(x,y,1+rng.nextInt(3),1+rng.nextInt(3))
+            }
+            g.setPaint(new java.awt.GradientPaint(0,h*0.45f,new java.awt.Color(10,30,70,13),0,h,new java.awt.Color(10,30,70,0)))
+            g.fillRect(0,(int)(h*.42),w,(int)(h*.58))
+        }
+
+        def glyphSet = new LinkedHashSet<Character>()
+        for (int cp=32; cp<=126; cp++) glyphSet.add((char)cp)
+        [0x00A0,0x00B0,0x00B7,0x00D7,0x00F7,0x00DF,0x00E9,0x00E4,0x00F6,0x00FC,0x2013,0x2014,0x2022,0x2190,0x2191,0x2192,0x2193,0x2194,0x221E,0x2248,0x2713,0x2116,0x20BD].each { glyphSet.add((char)(int)it) }
+        for (int cp=0x0410; cp<=0x044F; cp++) glyphSet.add((char)cp)
+        glyphSet.add((char)0x0401); glyphSet.add((char)0x0451)
+        for (int cp=0x0370; glyphSet.size()<256 && cp<0x5000; cp++) {
+            if (!Character.isSurrogate((char)cp) && Character.isDefined((char)cp)) glyphSet.add((char)cp)
+        }
+        def glyphs = new ArrayList<Character>(glyphSet).take(256)
+        while (glyphs.size()<256) glyphs.add((char)(0x5000 + glyphs.size()))
+        File atlasFile = new File(root, "textures/font/glyphs.png")
+        def atlas = new java.awt.image.BufferedImage(1024,1024,java.awt.image.BufferedImage.TYPE_INT_ARGB)
+        def fg = atlas.createGraphics()
+        fg.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON)
+        fg.setRenderingHint(java.awt.RenderingHints.KEY_TEXT_ANTIALIASING, java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
+        fg.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING, java.awt.RenderingHints.VALUE_RENDER_QUALITY)
+        fg.setFont(new java.awt.Font("DejaVu Sans", java.awt.Font.BOLD, 50))
+        def fm = fg.getFontMetrics()
+        for(int i=0;i<256;i++){
+            char ch = glyphs.get(i)
+            int cellX=(i%16)*64, cellY=(i.intdiv(16))*64
+            fg.setColor(new java.awt.Color(255,255,255,255))
+            String str=String.valueOf(ch)
+            int sw=fm.stringWidth(str)
+            int sx=cellX+Math.max(1,(64-sw)/2)
+            int baseline=cellY+53
+            if (!Character.isISOControl(ch)) fg.drawString(str,sx,baseline)
+        }
+        fg.dispose()
+        javax.imageio.ImageIO.write(atlas,"png",atlasFile)
+        def charRows=[]
+        for(int row=0;row<16;row++){
+            StringBuilder sb=new StringBuilder()
+            for(int col=0;col<16;col++) sb.append(glyphs.get(row*16+col).charValue())
+            charRows << sb.toString()
+        }
+        File fontJson = new File(root, "font/acid.json")
+        fontJson.parentFile.mkdirs()
+        fontJson.text = JsonOutput.prettyPrint(JsonOutput.toJson([providers:[[type:"bitmap", file:"acidvisuals:font/glyphs.png", ascent:13, height:16, chars:charRows]]]))
+    }
+}
+
+tasks.named("processResources").configure { dependsOn(tasks.named("generateAcidVisualsArt")) }
+processResources {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") { expand "version": inputs.properties.version }
+}
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+    options.encoding = "UTF-8"
+}
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}

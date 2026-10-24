@@ -1,0 +1,45 @@
+name: Build AcidVisuals Wet Floor (Minecraft 1.21.4)
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'wet-floor-visuals/**'
+      - '.github/workflows/wet-floor-visuals.yml'
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.12"
+      - name: Build mod JAR
+        run: gradle --no-daemon -p wet-floor-visuals build
+      - name: Prepare release JAR
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          JAR="$(find wet-floor-visuals/build/libs -maxdepth 1 -type f -name 'AcidVisuals-WetFloor-*.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' | head -n 1)"
+          test -n "$JAR"
+          cp "$JAR" release/AcidVisuals-WetFloor-1.21.4.jar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AcidVisuals-WetFloor-1.21.4
+          path: release/AcidVisuals-WetFloor-1.21.4.jar
+          if-no-files-found: error
+      - name: Publish JAR release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: acidvisuals-wetfloor-${{ github.run_number }}
+          name: AcidVisuals Wet Floor 1.21.4 build ${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          files: release/AcidVisuals-WetFloor-1.21.4.jar
+          make_latest: false
