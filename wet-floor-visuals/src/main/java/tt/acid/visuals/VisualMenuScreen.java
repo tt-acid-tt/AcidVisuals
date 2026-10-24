@@ -7,6 +7,9 @@ import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public final class VisualMenuScreen extends Screen {
     private static final Identifier PANEL = id("gui/panel");
     private static final Identifier BUTTON = id("gui/button");
@@ -19,6 +22,8 @@ public final class VisualMenuScreen extends Screen {
     private static final String[] SKY_DESCRIPTIONS = {"Северные ленты", "Фиолетовая туманность", "Тёплый горизонт", "Лёд и звёзды", "Тёмное ядро и обод", "Зелёные волны", "Огненная вспышка", "Синие и розовые сетки"};
     private int activeTab;
     private String draggingSlider;
+    private final Map<String, Float> hoverAnimations = new HashMap<>();
+    private final Map<String, Float> toggleAnimations = new HashMap<>();
 
     public VisualMenuScreen() {
         super(Text.literal("AcidVisuals"));
@@ -36,11 +41,34 @@ public final class VisualMenuScreen extends Screen {
         // Draw the complete source texture into the destination rectangle. The 10-argument
         // overload treats destination width/height as source-region size and clips high-res art.
         context.drawTexture(RenderLayer::getGuiTextured, texture, x, y, 0, 0, w, h, tw, th, tw, th);
-        if (texture.equals(BUTTON_HOVER)) {
-            int accent = VisualSettings.accent();
-            fillRounded(context, x + 4, y + 4, w - 8, h - 8, (0x18 << 24) | (accent & 0x00FFFFFF));
-            fillRounded(context, x + 14, y + 3, Math.max(1, w - 28), 2, (0xB0 << 24) | (accent & 0x00FFFFFF));
+        int accent = VisualSettings.accent();
+        String key = x + ":" + y + ":" + w + ":" + h;
+        float target = texture.equals(BUTTON_HOVER) ? 1.0f : 0.0f;
+        float amount = hoverAnimations.getOrDefault(key, target);
+        amount += (target - amount) * 0.22f;
+        if (Math.abs(target - amount) < 0.004f) amount = target;
+        hoverAnimations.put(key, amount);
+        if (amount > 0.01f) {
+            fillRounded(context, x + 4, y + 4, w - 8, h - 8, (((int)(30 * amount)) << 24) | (accent & 0x00FFFFFF));
+            fillRounded(context, x + 14, y + 3, Math.max(1, w - 28), 2, (((int)(170 * amount)) << 24) | (accent & 0x00FFFFFF));
         }
+    }
+
+    private float animateToggle(String key, boolean enabled) {
+        float target = enabled ? 1.0f : 0.0f;
+        float value = toggleAnimations.getOrDefault(key, target);
+        value += (target - value) * 0.24f;
+        if (Math.abs(target - value) < 0.004f) value = target;
+        toggleAnimations.put(key, value);
+        return value;
+    }
+
+    private int blendColor(int from, int to, float amount) {
+        float t = Math.max(0, Math.min(1, amount));
+        int r = Math.round(((from >>> 16) & 255) * (1-t) + ((to >>> 16) & 255) * t);
+        int g = Math.round(((from >>> 8) & 255) * (1-t) + ((to >>> 8) & 255) * t);
+        int b = Math.round((from & 255) * (1-t) + (to & 255) * t);
+        return 0xFF000000 | (r << 16) | (g << 8) | b;
     }
 
     private static void fillRounded(DrawContext context, int x, int y, int w, int h, int color) {
@@ -199,8 +227,9 @@ public final class VisualMenuScreen extends Screen {
         texture(c, hover ? BUTTON_HOVER : BUTTON, x, y, w, h, 512, 128);
         c.drawTextWithShadow(textRenderer, fontText(label), x + 10, y + 15, value ? 0xFFF1F7FC : 0xFF90A0AE);
         int sx = x + w - 43, sy = y + 10;
-        fillRounded(c, sx, sy, 32, 20, value ? VisualSettings.accent() : 0xFF303944);
-        int knob = value ? sx + 17 : sx + 2;
+        float progress = animateToggle(key, value);
+        fillRounded(c, sx, sy, 32, 20, blendColor(0xFF303944, VisualSettings.accent(), progress));
+        int knob = sx + 2 + Math.round(progress * 15);
         fillRounded(c, knob, sy + 2, 13, 16, 0xFFF3F7FA);
     }
 
@@ -229,11 +258,12 @@ public final class VisualMenuScreen extends Screen {
         c.drawTextWithShadow(textRenderer,fontText(desc),x+16,y+32,0xFFA5BFCE);
         int sx = x + w - 62, sy = y + 13;
         int accent = VisualSettings.accent();
-        int trackColor = value ? accent : 0xFF303944;
+        float progress = animateToggle(key, value);
+        int trackColor = blendColor(0xFF303944, accent, progress);
         fillRounded(c, sx, sy, 52, 27, trackColor);
-        int knobX = value ? sx + 29 : sx + 3;
+        int knobX = sx + 3 + Math.round(progress * 26);
         fillRounded(c, knobX, sy + 3, 20, 21, 0xFFF3F7FA);
-        c.drawTextWithShadow(textRenderer,fontText(value?"ON":"OFF"),x+w-104,y+20,value?accent:0xFF8294A3);
+        c.drawTextWithShadow(textRenderer,fontText(value?"ON":"OFF"),x+w-104,y+20,blendColor(0xFF8294A3,accent,progress));
     }
 
     private void drawSlider(DrawContext c, String key, String title, String desc, int row, int mx, int my) {
