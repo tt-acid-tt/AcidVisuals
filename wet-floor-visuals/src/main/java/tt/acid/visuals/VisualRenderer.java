@@ -578,6 +578,130 @@ public final class VisualRenderer {
         }
     }
 
+    public static void renderHud(DrawContext context) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (!VisualSettings.get("hud_enabled") || client.player == null || client.world == null || client.options.hudHidden) return;
+
+        int screenW = context.getScaledWindowWidth();
+        int screenH = context.getScaledWindowHeight();
+        int accent = VisualSettings.accent();
+        int panel = 0xD9161D28;
+        int edge = 0xB0000000 | (accent & 0x00FFFFFF);
+        int x = 10;
+        int y = 10;
+
+        if (VisualSettings.get("hud_watermark")) {
+            context.fill(x, y, x + 146, y + 27, panel);
+            context.fill(x, y, x + 3, y + 27, accent);
+            context.drawBorder(x, y, 146, 27, edge);
+            context.drawTextWithShadow(client.textRenderer,
+                Text.literal("ACIDVISUALS").setStyle(Style.EMPTY.withFont(FONT)),
+                x + 10, y + 5, 0xFFF6FAFF);
+            context.drawTextWithShadow(client.textRenderer, Text.literal("1.0"), x + 105, y + 7, accent);
+        }
+
+        List<String[]> stats = new ArrayList<>();
+        if (VisualSettings.get("hud_fps")) {
+            stats.add(new String[]{"FPS", Integer.toString(client.getCurrentFps())});
+        }
+        if (VisualSettings.get("hud_coords")) {
+            var p = client.player.getPos();
+            stats.add(new String[]{"XYZ", String.format(java.util.Locale.ROOT, "%.1f  %.1f  %.1f", p.x, p.y, p.z)});
+        }
+        if (VisualSettings.get("hud_speed")) {
+            var velocity = client.player.getVelocity();
+            double bps = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z) * 20.0;
+            stats.add(new String[]{"BPS", String.format(java.util.Locale.ROOT, "%.2f", bps)});
+        }
+        if (VisualSettings.get("hud_direction")) {
+            stats.add(new String[]{"DIR", client.player.getHorizontalFacing().asString().toUpperCase(java.util.Locale.ROOT)});
+        }
+
+        if (!stats.isEmpty()) {
+            int cardY = VisualSettings.get("hud_watermark") ? y + 34 : y;
+            int cardW = 212;
+            for (String[] row : stats) {
+                cardW = Math.max(cardW, 22 + client.textRenderer.getWidth(row[0]) + client.textRenderer.getWidth(row[1]) + 26);
+            }
+            cardW = Math.min(300, cardW);
+            int cardH = 8 + stats.size() * 21;
+            context.fill(x, cardY, x + cardW, cardY + cardH, panel);
+            context.drawBorder(x, cardY, cardW, cardH, edge);
+            for (int i = 0; i < stats.size(); i++) {
+                String[] row = stats.get(i);
+                int rowY = cardY + 5 + i * 21;
+                context.fill(x + 5, rowY, x + 7, rowY + 16, accent);
+                context.drawTextWithShadow(client.textRenderer, Text.literal(row[0]), x + 13, rowY + 4, 0xFF9AAEBD);
+                String value = row[1];
+                context.drawTextWithShadow(client.textRenderer, Text.literal(value),
+                    x + cardW - 10 - client.textRenderer.getWidth(value), rowY + 4, 0xFFF0F7FC);
+                if (i < stats.size() - 1) context.fill(x + 10, rowY + 18, x + cardW - 6, rowY + 19, 0x302D3948);
+            }
+        }
+
+        if (VisualSettings.get("hud_target") && client.targetedEntity instanceof LivingEntity target
+                && target.isAlive() && target != client.player) {
+            int tx = screenW - 194;
+            int ty = 10;
+            int tw = 184;
+            context.fill(tx, ty, tx + tw, ty + 61, panel);
+            context.fill(tx, ty, tx + 3, ty + 61, accent);
+            context.drawBorder(tx, ty, tw, 61, edge);
+            String name = target.getName().getString();
+            if (name.length() > 18) name = name.substring(0, 17) + "…";
+            context.drawTextWithShadow(client.textRenderer, Text.literal(name), tx + 11, ty + 8, 0xFFF5FAFF);
+            String hp = String.format(java.util.Locale.ROOT, "%.1f / %.1f", target.getHealth(), target.getMaxHealth());
+            context.drawTextWithShadow(client.textRenderer, Text.literal(hp),
+                tx + tw - 10 - client.textRenderer.getWidth(hp), ty + 8, 0xFFD4E2ED);
+            float health = target.getMaxHealth() <= 0 ? 0 : Math.max(0, Math.min(1, target.getHealth() / target.getMaxHealth()));
+            int barX = tx + 11, barY = ty + 34, barW = tw - 22;
+            context.fill(barX, barY, barX + barW, barY + 7, 0xFF303744);
+            context.fill(barX, barY, barX + Math.round(barW * health), barY + 7, accent);
+            context.drawTextWithShadow(client.textRenderer, Text.literal("TARGET"), tx + 11, ty + 46, 0xFF91A6B6);
+        }
+
+        if (VisualSettings.get("hud_armor")) {
+            int armorX = screenW - 12 - 4 * 22;
+            int armorY = screenH - 54;
+            int index = 0;
+            for (net.minecraft.item.ItemStack stack : client.player.getArmorItems()) {
+                int slotX = armorX + index * 22;
+                context.fill(slotX, armorY, slotX + 20, armorY + 26, panel);
+                context.drawBorder(slotX, armorY, 20, 26, 0x803E4A5B);
+                if (!stack.isEmpty()) {
+                    context.drawItem(stack, slotX + 2, armorY + 2);
+                    if (stack.isDamageable()) {
+                        int remaining = Math.max(0, stack.getMaxDamage() - stack.getDamage());
+                        float ratio = remaining / (float) stack.getMaxDamage();
+                        context.fill(slotX + 2, armorY + 22, slotX + 18, armorY + 24, 0xFF293341);
+                        context.fill(slotX + 2, armorY + 22, slotX + 2 + Math.round(16 * ratio), armorY + 24, accent);
+                    }
+                }
+                index++;
+            }
+        }
+
+        if (VisualSettings.get("hud_keystrokes")) {
+            int kx = 12;
+            int ky = screenH - 74;
+            drawHudKey(context, kx + 24, ky, "W", client.options.forwardKey.isPressed(), accent);
+            drawHudKey(context, kx, ky + 24, "A", client.options.leftKey.isPressed(), accent);
+            drawHudKey(context, kx + 24, ky + 24, "S", client.options.backKey.isPressed(), accent);
+            drawHudKey(context, kx + 48, ky + 24, "D", client.options.rightKey.isPressed(), accent);
+            drawHudKey(context, kx + 82, ky + 24, "L", client.options.attackKey.isPressed(), accent);
+            drawHudKey(context, kx + 106, ky + 24, "R", client.options.useKey.isPressed(), accent);
+            context.drawTextWithShadow(client.textRenderer, Text.literal("KEYS"), kx + 3, ky + 52, 0xFF91A6B6);
+        }
+    }
+
+    private static void drawHudKey(DrawContext context, int x, int y, String key, boolean pressed, int accent) {
+        int fill = pressed ? ((0xE0 << 24) | (accent & 0x00FFFFFF)) : 0xD9161D28;
+        context.fill(x, y, x + 21, y + 21, fill);
+        context.drawBorder(x, y, 21, 21, pressed ? accent : 0x804A5A6B);
+        context.drawCenteredTextWithShadow(MinecraftClient.getInstance().textRenderer, Text.literal(key),
+            x + 10, y + 6, 0xFFF5FAFF);
+    }
+
     private static final class Ring {
         final double x,y,z;
         int age;
