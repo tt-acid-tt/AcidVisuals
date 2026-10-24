@@ -39,7 +39,7 @@ tasks.register("generateAcidVisualsArt") {
             g.dispose()
             javax.imageio.ImageIO.write(image, "png", file)
         }
-        def rr = { double x, double y, double w, double h, double r -> new java.awt.geom.RoundRectangle2D.Double(x, y, w, h, r, r) }
+        def rr = { x, y, w, h, r -> new java.awt.geom.RoundRectangle2D.Double(x.doubleValue(), y.doubleValue(), w.doubleValue(), h.doubleValue(), r.doubleValue(), r.doubleValue()) }
         def rng = new java.util.Random(240126L)
 
         make("gui/panel.png", 1024, 768) { g, img, w, h ->
