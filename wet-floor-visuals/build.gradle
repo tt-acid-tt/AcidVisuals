@@ -206,7 +206,7 @@ tasks.register("generateAcidVisualsArt") {
                         [glow, new java.awt.Color(glow.getRed(),glow.getGreen(),glow.getBlue(),24),
                          new java.awt.Color(glow.getRed(),glow.getGreen(),glow.getBlue(),7),
                          new java.awt.Color(glow.getRed(),glow.getGreen(),glow.getBlue(),0)] as java.awt.Color[]))
-                    g.fill(new java.awt.geom.Ellipse2D.Float(cx-radius,cy-radius,radius*2,radius*2))
+                    g.fill(new java.awt.geom.Ellipse2D.Double(cx-radius,cy-radius,radius*2,radius*2))
                 }
 
                 // Long, layered light ribbons give the panorama a liquid, shifting-shader aesthetic.
@@ -232,7 +232,7 @@ tasks.register("generateAcidVisualsArt") {
                         [0f,0.28f,0.6f,1f] as float[],
                         [new java.awt.Color(255,241,209,250), new java.awt.Color(255,178,170,170),
                          new java.awt.Color(255,130,164,60), new java.awt.Color(255,130,164,0)] as java.awt.Color[]))
-                    g.fill(new java.awt.geom.Ellipse2D.Float(sx-sr,sy-sr,sr*2,sr*2))
+                    g.fill(new java.awt.geom.Ellipse2D.Double(sx-sr,sy-sr,sr*2,sr*2))
                 }
 
                 // Crisp stars at multiple sizes over a softened high-resolution sky.
