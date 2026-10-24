@@ -62,6 +62,7 @@ public final class VisualRenderer {
     private static float smoothSlotX = Float.NaN;
     private static long clientTicks;
     private static boolean surfaceScanRequested;
+    private static int surfaceScanDelay;
     private static final float[] KEY_ANIMATION = new float[6];
     private static final float[] KEY_TARGETS = new float[6];
     private static LivingEntity lastHudTarget;
@@ -122,10 +123,12 @@ public final class VisualRenderer {
         }
 
         if (VisualSettings.get("wet_floor")) {
-            if (surfaceScanRequested || client.world.getTime() - lastSurfaceScan > 100) {
+            if (surfaceScanRequested && surfaceScanDelay > 0) surfaceScanDelay--;
+            if ((surfaceScanRequested && surfaceScanDelay <= 0) || client.world.getTime() - lastSurfaceScan > 40) {
                 scanWetTiles(client);
                 lastSurfaceScan = client.world.getTime();
                 surfaceScanRequested = false;
+                surfaceScanDelay = 0;
             }
             tickRain(client);
         } else {
@@ -139,6 +142,7 @@ public final class VisualRenderer {
 
     public static void requestSurfaceScan() {
         surfaceScanRequested = true;
+        surfaceScanDelay = 2;
     }
 
     private static void tickHudAnimations(MinecraftClient client) {
@@ -609,8 +613,8 @@ public final class VisualRenderer {
         double x = du * 2.0;
         double y = v - centerV;
         double cos = Math.cos(angle), sin = Math.sin(angle);
-        double sampleU = centerU + (x * cos + y * sin) / (2.0 * pulse);
-        double sampleV = centerV + (-x * sin + y * cos) / pulse;
+        double sampleU = 0.5 + (x * cos + y * sin) / (2.0 * pulse);
+        double sampleV = 0.48 + (-x * sin + y * cos) / pulse;
         sampleU -= Math.floor(sampleU);
         sampleV = clamp01(sampleV);
 
@@ -666,7 +670,7 @@ public final class VisualRenderer {
         int y = screenH - barH;
 
         // This opaque base hides the vanilla hotbar art beneath our custom skin.
-        context.fill(x, y, x + barW, y + barH, 0xFF2F343C);
+        fillRounded(context, x, y, barW, barH, 0xFF2F343C);
         context.drawTexture(RenderLayer::getGuiTextured, HOTBAR, x, y, 0, 0, barW, barH, 1456, 176, 1456, 176);
 
         // Nine matte graphite slots, drawn square rather than stretching pill-shaped art.
@@ -754,7 +758,7 @@ public final class VisualRenderer {
             int alpha = Math.max(0, Math.min(255, (int)(218 * targetHudAlpha)));
             fillRounded(context, tx, ty, tw, 62, withAlpha(0xFF161D28, alpha));
             fillRounded(context, tx, ty + 7, 3, 48, withAlpha(accent, alpha));
-            drawRoundedBorder(context, tx, ty, tw, 62, withAlpha(accent, Math.min(190, alpha)));
+            fillRounded(context, tx + tw - 1, ty + 7, 1, 48, withAlpha(accent, alpha));
             String name = lastHudTarget.getName().getString();
             if (name.length() > 18) name = name.substring(0, 17) + "…";
             int textAlpha = Math.max(0, Math.min(255, (int)(255 * targetHudAlpha)));
