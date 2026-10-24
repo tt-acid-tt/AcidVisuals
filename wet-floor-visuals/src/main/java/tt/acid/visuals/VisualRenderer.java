@@ -450,7 +450,7 @@ public final class VisualRenderer {
         int y = screenH - barH;
 
         // This opaque base hides the vanilla hotbar art beneath our custom skin.
-        context.fill(x, y, x + barW, y + barH, 0xFF081321);
+        context.fill(x, y, x + barW, y + barH, 0xFF2F343C);
         context.drawTexture(RenderLayer::getGuiTextured, HOTBAR, x, y, 0, 0, barW, barH, 1456, 176);
 
         // Nine matte graphite slots, drawn square rather than stretching pill-shaped art.
@@ -479,7 +479,7 @@ public final class VisualRenderer {
         }
     }
 
-    private static final class Ring {    private static final class Ring {
+    private static final class Ring {
         final double x,y,z;
         int age;
         Ring(double x,double y,double z){this.x=x;this.y=y;this.z=z;}
