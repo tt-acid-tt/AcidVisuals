@@ -1,4 +1,4 @@
-# Standalone AcidVisuals Wet Floor art/resource generator for Minecraft 1.21.4.
+// Standalone AcidVisuals Wet Floor art/resource generator for Minecraft 1.21.4.
 import groovy.json.JsonOutput
 
 plugins {
