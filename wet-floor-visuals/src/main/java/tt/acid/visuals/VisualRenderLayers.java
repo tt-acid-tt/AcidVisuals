@@ -14,8 +14,7 @@ import net.minecraft.util.TriState;
 final class VisualRenderLayers extends RenderLayer {
     private VisualRenderLayers() {
         super("acidvisuals:private", VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL,
-            VertexFormat.DrawMode.QUADS, 256, false, false,
-            MultiPhaseParameters.builder().build(false));
+            VertexFormat.DrawMode.QUADS, 256, false, false, () -> {}, () -> {});
     }
 
     static RenderLayer translucentNoDepthWrite(Identifier texture) {
