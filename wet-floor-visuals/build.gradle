@@ -148,7 +148,7 @@ tasks.register("generateAcidVisualsArt") {
             for (int i=0; i<5; i++) {
                 float yy = 44f + i*104f
                 g.setColor(new java.awt.Color(209,242,255,Math.max(10,42-i*5)))
-                g.setStroke(new java.awt.BasicStroke(3f + (i%2)*2f, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND))
+                g.setStroke(new java.awt.BasicStroke((float)(3 + (i%2)*2), java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND))
                 def reflection = new java.awt.geom.Path2D.Double()
                 reflection.moveTo(-24, yy+12)
                 reflection.curveTo(w*0.22, yy-14, w*0.47, yy+36, w*0.69, yy+4)
@@ -188,7 +188,7 @@ tasks.register("generateAcidVisualsArt") {
                 g.setPaint(new java.awt.LinearGradientPaint(0f,(float)y,0f,(float)(y+130),
                     [0f,0.45f,1f] as float[],
                     [new java.awt.Color(212,239,255,0),new java.awt.Color(191,228,246,42+(i%3)*9),new java.awt.Color(206,239,255,0)] as java.awt.Color[]))
-                g.setStroke(new java.awt.BasicStroke(36f+(i%5)*16f,java.awt.BasicStroke.CAP_ROUND,java.awt.BasicStroke.JOIN_ROUND))
+                g.setStroke(new java.awt.BasicStroke((float)(36+(i%5)*16),java.awt.BasicStroke.CAP_ROUND,java.awt.BasicStroke.JOIN_ROUND))
                 g.draw(new java.awt.geom.Arc2D.Double(x,y-70,350,190,190,155,java.awt.geom.Arc2D.OPEN))
             }
             g.setColor(new java.awt.Color(221,241,255,42))
