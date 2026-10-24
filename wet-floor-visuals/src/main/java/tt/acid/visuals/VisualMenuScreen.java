@@ -38,8 +38,24 @@ public final class VisualMenuScreen extends Screen {
         context.drawTexture(RenderLayer::getGuiTextured, texture, x, y, 0, 0, w, h, tw, th, tw, th);
         if (texture.equals(BUTTON_HOVER)) {
             int accent = VisualSettings.accent();
-            context.fill(x + 3, y + 3, x + w - 3, y + h - 3, (0x20 << 24) | (accent & 0x00FFFFFF));
-            context.drawBorder(x, y, w, h, accent);
+            fillRounded(context, x + 4, y + 4, w - 8, h - 8, (0x18 << 24) | (accent & 0x00FFFFFF));
+            fillRounded(context, x + 14, y + 3, Math.max(1, w - 28), 2, (0xB0 << 24) | (accent & 0x00FFFFFF));
+        }
+    }
+
+    private static void fillRounded(DrawContext context, int x, int y, int w, int h, int color) {
+        if (w <= 0 || h <= 0) return;
+        int radius = Math.min(h / 2, w / 2);
+        if (radius <= 0) {
+            context.fill(x, y, x + w, y + h, color);
+            return;
+        }
+        for (int dy = 0; dy < h; dy++) {
+            double oy = dy < radius ? radius - dy - 0.5
+                : (dy >= h - radius ? dy - (h - radius) + 0.5 : 0.0);
+            int inset = oy == 0.0 ? 0
+                : Math.max(0, radius - (int)Math.floor(Math.sqrt(Math.max(0, radius * radius - oy * oy))));
+            context.fill(x + inset, y + dy, x + w - inset, y + dy + 1, color);
         }
     }
 
@@ -126,7 +142,7 @@ public final class VisualMenuScreen extends Screen {
         drawToggle(c, "sky_overlay", "Атмосфера неба", "Лёгкое высокодетальное небесное сияние", 2, mx, my);
         drawToggle(c, "soft_lighting", "Мягкие блики", "Более мягкие цветовые акценты", 3, mx, my);
         drawSlider(c, "wet_intensity", "Интенсивность бликов", "Яркость мокрой поверхности", 0, mx, my);
-        drawSlider(c, "puddle_radius", "Покрытие отражениями", "Радиус охвата 6–24 блоков вокруг игрока", 1, mx, my);
+        drawSlider(c, "reflection_wave", "Волны воды", "Сила плавного искажения отражения", 1, mx, my);
     }
 
     private void renderSkyPage(DrawContext c, int mx, int my) {
@@ -183,10 +199,9 @@ public final class VisualMenuScreen extends Screen {
         texture(c, hover ? BUTTON_HOVER : BUTTON, x, y, w, h, 512, 128);
         c.drawTextWithShadow(textRenderer, fontText(label), x + 10, y + 15, value ? 0xFFF1F7FC : 0xFF90A0AE);
         int sx = x + w - 43, sy = y + 10;
-        c.fill(sx, sy, sx + 32, sy + 20, value ? VisualSettings.accent() : 0xFF303944);
-        c.drawBorder(sx, sy, 32, 20, value ? VisualSettings.accent() : 0xFF697887);
+        fillRounded(c, sx, sy, 32, 20, value ? VisualSettings.accent() : 0xFF303944);
         int knob = value ? sx + 17 : sx + 2;
-        c.fill(knob, sy + 2, knob + 13, sy + 18, 0xFFF3F7FA);
+        fillRounded(c, knob, sy + 2, 13, 16, 0xFFF3F7FA);
     }
 
 
@@ -215,11 +230,9 @@ public final class VisualMenuScreen extends Screen {
         int sx = x + w - 62, sy = y + 13;
         int accent = VisualSettings.accent();
         int trackColor = value ? accent : 0xFF303944;
-        c.fill(sx, sy, sx + 52, sy + 27, trackColor);
-        c.drawBorder(sx, sy, 52, 27, value ? accent : 0xFF697887);
+        fillRounded(c, sx, sy, 52, 27, trackColor);
         int knobX = value ? sx + 29 : sx + 3;
-        c.fill(knobX, sy + 3, knobX + 20, sy + 24, 0xFFF3F7FA);
-        c.drawBorder(knobX, sy + 3, 20, 21, 0xFFCED8E0);
+        fillRounded(c, knobX, sy + 3, 20, 21, 0xFFF3F7FA);
         c.drawTextWithShadow(textRenderer,fontText(value?"ON":"OFF"),x+w-104,y+20,value?accent:0xFF8294A3);
     }
 
@@ -229,23 +242,23 @@ public final class VisualMenuScreen extends Screen {
         c.drawTextWithShadow(textRenderer,fontText(title),x+15,y+8,0xFFF0FAFF);
         c.drawTextWithShadow(textRenderer,fontText(desc),x+15,y+30,0xFF9CB7C8);
         int trackX=x+Math.max(190,w/2), trackW=Math.max(70,w-(trackX-x)-22), trackY=y+40;
-        c.fill(trackX,trackY,trackX+trackW,trackY+5,0xFF1B3043);
+        fillRounded(c,trackX,trackY,trackW,5,0xFF1B3043);
         float min=sliderMin(key), max=sliderMax(key), value=VisualSettings.slider(key);
         int filled=(int)(trackW*(value-min)/(max-min));
-        c.fill(trackX,trackY,trackX+filled,trackY+5,VisualSettings.accent());
+        fillRounded(c,trackX,trackY,filled,5,VisualSettings.accent());
         int thumbX=trackX+filled-5;
-        c.fill(thumbX,trackY-4,thumbX+11,trackY+9,0xFFEAFBFF);
+        fillRounded(c,thumbX,trackY-4,11,13,0xFFEAFBFF);
         c.drawTextWithShadow(textRenderer,fontText(sliderValue(key,value)),x+w-75,y+8,VisualSettings.accent());
     }
 
     private float sliderMin(String key) {
-        return switch(key){case "jump_size"->0.55f;case "particle_density"->0.1f;case "wet_intensity"->0.15f;case "puddle_radius"->6f;case "box_range"->8f;default->0f;};
+        return switch(key){case "jump_size"->0.55f;case "particle_density"->0.1f;case "wet_intensity"->0.15f;case "puddle_radius"->6f;case "reflection_wave"->0f;case "box_range"->8f;default->0f;};
     }
     private float sliderMax(String key) {
-        return switch(key){case "jump_size"->2.8f;case "particle_density","wet_intensity"->1f;case "puddle_radius"->24f;case "box_range"->64f;default->1f;};
+        return switch(key){case "jump_size"->2.8f;case "particle_density","wet_intensity","reflection_wave"->1f;case "puddle_radius"->24f;case "box_range"->64f;default->1f;};
     }
     private String sliderValue(String key,float v) {
-        return switch(key){case "jump_size"->String.format(java.util.Locale.ROOT,"%.2f",v);case "particle_density","wet_intensity"->Math.round(v*100)+"%";default->String.format(java.util.Locale.ROOT,"%.0f",v);};
+        return switch(key){case "jump_size"->String.format(java.util.Locale.ROOT,"%.2f",v);case "particle_density","wet_intensity","reflection_wave"->Math.round(v*100)+"%";default->String.format(java.util.Locale.ROOT,"%.0f",v);};
     }
 
     private String[] toggleKeys() {
