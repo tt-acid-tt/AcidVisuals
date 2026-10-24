@@ -163,7 +163,7 @@ tasks.register("generateAcidVisualsArt") {
             g.fillRect(0,(int)(h*0.32),w,(int)(h*0.30))
             g.setColor(new java.awt.Color(225,247,255,125))
             g.setStroke(new java.awt.BasicStroke(2.2f))
-            g.drawLine(28,h/2,w-28,h/2)
+            g.drawLine(28,h.intdiv(2),w-28,h.intdiv(2))
         }
 
         make("environment/sky_overlay.png", 2048, 1024) { g, img, w, h ->
