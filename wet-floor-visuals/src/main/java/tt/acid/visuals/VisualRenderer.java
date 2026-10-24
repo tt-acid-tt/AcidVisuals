@@ -64,6 +64,10 @@ public final class VisualRenderer {
     private static boolean surfaceScanRequested;
     private static final float[] KEY_ANIMATION = new float[6];
     private static final float[] KEY_TARGETS = new float[6];
+    private static LivingEntity lastHudTarget;
+    private static int targetHoldTicks;
+    private static float targetHudAlpha;
+    private static float targetHealthSmooth;
     private static CloudRenderMode previousCloudMode;
     private static boolean forcedCloudsOff;
 
@@ -151,6 +155,23 @@ public final class VisualRenderer {
             KEY_TARGETS[i] = pressed[i] ? 1.0f : 0.0f;
             KEY_ANIMATION[i] += (KEY_TARGETS[i] - KEY_ANIMATION[i]) * 0.24f;
             if (Math.abs(KEY_TARGETS[i] - KEY_ANIMATION[i]) < 0.004f) KEY_ANIMATION[i] = KEY_TARGETS[i];
+        }
+        if (client.targetedEntity instanceof LivingEntity living && living.isAlive() && living != client.player) {
+            lastHudTarget = living;
+            targetHoldTicks = 16;
+        } else if (targetHoldTicks > 0) {
+            targetHoldTicks--;
+        } else if (lastHudTarget != null && !lastHudTarget.isAlive()) {
+            lastHudTarget = null;
+        }
+        float targetAlpha = lastHudTarget != null && targetHoldTicks > 0 && lastHudTarget.isAlive() ? 1.0f : 0.0f;
+        targetHudAlpha += (targetAlpha - targetHudAlpha) * 0.22f;
+        if (Math.abs(targetAlpha - targetHudAlpha) < 0.005f) targetHudAlpha = targetAlpha;
+        if (lastHudTarget != null && lastHudTarget.isAlive()) {
+            float hp = lastHudTarget.getMaxHealth() <= 0 ? 0 : Math.max(0, Math.min(1, lastHudTarget.getHealth() / lastHudTarget.getMaxHealth()));
+            targetHealthSmooth += (hp - targetHealthSmooth) * 0.2f;
+        } else {
+            targetHealthSmooth += (0 - targetHealthSmooth) * 0.2f;
         }
     }
 
@@ -681,25 +702,17 @@ public final class VisualRenderer {
         int screenW = context.getScaledWindowWidth();
         int screenH = context.getScaledWindowHeight();
         int accent = VisualSettings.accent();
-        int panel = 0xD9161D28;
-        int edge = 0xB0000000 | (accent & 0x00FFFFFF);
         int x = 10;
         int y = 10;
 
         if (VisualSettings.get("hud_watermark")) {
-            context.fill(x, y, x + 146, y + 27, panel);
-            context.fill(x, y, x + 3, y + 27, accent);
-            context.drawBorder(x, y, 146, 27, edge);
-            context.drawTextWithShadow(client.textRenderer,
-                Text.literal("ACIDVISUALS").setStyle(Style.EMPTY.withFont(FONT)),
-                x + 10, y + 5, 0xFFF6FAFF);
-            context.drawTextWithShadow(client.textRenderer, Text.literal("1.0"), x + 105, y + 7, accent);
+            drawHudCard(context, x, y, 146, 28, accent);
+            context.drawTextWithShadow(client.textRenderer, hudText("ACIDVISUALS"), x + 10, y + 7, 0xFFF6FAFF);
+            context.drawTextWithShadow(client.textRenderer, hudText("1.1"), x + 108, y + 7, accent);
         }
 
         List<String[]> stats = new ArrayList<>();
-        if (VisualSettings.get("hud_fps")) {
-            stats.add(new String[]{"FPS", Integer.toString(client.getCurrentFps())});
-        }
+        if (VisualSettings.get("hud_fps")) stats.add(new String[]{"FPS", Integer.toString(client.getCurrentFps())});
         if (VisualSettings.get("hud_coords")) {
             var p = client.player.getPos();
             stats.add(new String[]{"XYZ", String.format(java.util.Locale.ROOT, "%.1f  %.1f  %.1f", p.x, p.y, p.z)});
@@ -717,62 +730,72 @@ public final class VisualRenderer {
             int cardY = VisualSettings.get("hud_watermark") ? y + 34 : y;
             int cardW = 212;
             for (String[] row : stats) {
-                cardW = Math.max(cardW, 22 + client.textRenderer.getWidth(row[0]) + client.textRenderer.getWidth(row[1]) + 26);
+                cardW = Math.max(cardW, 22 + client.textRenderer.getWidth(hudText(row[0])) + client.textRenderer.getWidth(hudText(row[1])) + 26);
             }
-            cardW = Math.min(300, cardW);
+            cardW = Math.min(320, cardW);
             int cardH = 8 + stats.size() * 21;
-            context.fill(x, cardY, x + cardW, cardY + cardH, panel);
-            context.drawBorder(x, cardY, cardW, cardH, edge);
+            drawHudCard(context, x, cardY, cardW, cardH, accent);
             for (int i = 0; i < stats.size(); i++) {
                 String[] row = stats.get(i);
                 int rowY = cardY + 5 + i * 21;
-                context.fill(x + 5, rowY, x + 7, rowY + 16, accent);
-                context.drawTextWithShadow(client.textRenderer, Text.literal(row[0]), x + 13, rowY + 4, 0xFF9AAEBD);
+                fillRounded(context, x + 5, rowY + 2, 3, 12, accent);
+                context.drawTextWithShadow(client.textRenderer, hudText(row[0]), x + 13, rowY + 4, 0xFFAABBC8);
                 String value = row[1];
-                context.drawTextWithShadow(client.textRenderer, Text.literal(value),
-                    x + cardW - 10 - client.textRenderer.getWidth(value), rowY + 4, 0xFFF0F7FC);
-                if (i < stats.size() - 1) context.fill(x + 10, rowY + 18, x + cardW - 6, rowY + 19, 0x302D3948);
+                context.drawTextWithShadow(client.textRenderer, hudText(value),
+                    x + cardW - 10 - client.textRenderer.getWidth(hudText(value)), rowY + 4, 0xFFF0F7FC);
+                if (i < stats.size() - 1) fillRounded(context, x + 10, rowY + 18, cardW - 20, 1, 0x302D3948);
             }
         }
 
-        if (VisualSettings.get("hud_target") && client.targetedEntity instanceof LivingEntity target
-                && target.isAlive() && target != client.player) {
-            int tx = screenW - 194;
+        if (VisualSettings.get("hud_target") && targetHudAlpha > 0.01f && lastHudTarget != null && lastHudTarget.isAlive()) {
+            int tx = screenW - 204;
             int ty = 10;
-            int tw = 184;
-            context.fill(tx, ty, tx + tw, ty + 61, panel);
-            context.fill(tx, ty, tx + 3, ty + 61, accent);
-            context.drawBorder(tx, ty, tw, 61, edge);
-            String name = target.getName().getString();
+            int tw = 194;
+            int alpha = Math.max(0, Math.min(255, (int)(218 * targetHudAlpha)));
+            fillRounded(context, tx, ty, tw, 62, withAlpha(0xFF161D28, alpha));
+            fillRounded(context, tx, ty + 7, 3, 48, withAlpha(accent, alpha));
+            drawRoundedBorder(context, tx, ty, tw, 62, withAlpha(accent, Math.min(190, alpha)));
+            String name = lastHudTarget.getName().getString();
             if (name.length() > 18) name = name.substring(0, 17) + "…";
-            context.drawTextWithShadow(client.textRenderer, Text.literal(name), tx + 11, ty + 8, 0xFFF5FAFF);
-            String hp = String.format(java.util.Locale.ROOT, "%.1f / %.1f", target.getHealth(), target.getMaxHealth());
-            context.drawTextWithShadow(client.textRenderer, Text.literal(hp),
-                tx + tw - 10 - client.textRenderer.getWidth(hp), ty + 8, 0xFFD4E2ED);
-            float health = target.getMaxHealth() <= 0 ? 0 : Math.max(0, Math.min(1, target.getHealth() / target.getMaxHealth()));
+            int textAlpha = Math.max(0, Math.min(255, (int)(255 * targetHudAlpha)));
+            context.drawTextWithShadow(client.textRenderer, hudText(name), tx + 11, ty + 8, withAlpha(0xFFF5FAFF, textAlpha));
+            String hp = String.format(java.util.Locale.ROOT, "%.1f / %.1f", lastHudTarget.getHealth(), lastHudTarget.getMaxHealth());
+            context.drawTextWithShadow(client.textRenderer, hudText(hp),
+                tx + tw - 10 - client.textRenderer.getWidth(hudText(hp)), ty + 8, withAlpha(0xFFD4E2ED, textAlpha));
             int barX = tx + 11, barY = ty + 34, barW = tw - 22;
-            context.fill(barX, barY, barX + barW, barY + 7, 0xFF303744);
-            context.fill(barX, barY, barX + Math.round(barW * health), barY + 7, accent);
-            context.drawTextWithShadow(client.textRenderer, Text.literal("TARGET"), tx + 11, ty + 46, 0xFF91A6B6);
+            fillRounded(context, barX, barY, barW, 7, withAlpha(0xFF303744, textAlpha));
+            fillRounded(context, barX, barY, Math.max(1, Math.round(barW * targetHealthSmooth)), 7, withAlpha(accent, textAlpha));
+            context.drawTextWithShadow(client.textRenderer, hudText("TARGET"), tx + 11, ty + 46, withAlpha(0xFF91A6B6, textAlpha));
         }
 
         if (VisualSettings.get("hud_armor")) {
-            int armorX = screenW - 12 - 4 * 22;
-            int armorY = screenH - 54;
+            int cardW = 78;
+            int gap = 5;
+            int groupWidth = 4 * cardW + 3 * gap;
+            int armorX = (screenW - groupWidth) / 2;
+            int armorY = screenH - 59;
             int index = 0;
             for (net.minecraft.item.ItemStack stack : client.player.getArmorItems()) {
-                int slotX = armorX + index * 22;
-                context.fill(slotX, armorY, slotX + 20, armorY + 26, panel);
-                context.drawBorder(slotX, armorY, 20, 26, 0x803E4A5B);
-                if (!stack.isEmpty()) {
-                    context.drawItem(stack, slotX + 2, armorY + 2);
-                    if (stack.isDamageable()) {
-                        int remaining = Math.max(0, stack.getMaxDamage() - stack.getDamage());
-                        float ratio = remaining / (float) stack.getMaxDamage();
-                        context.fill(slotX + 2, armorY + 22, slotX + 18, armorY + 24, 0xFF293341);
-                        context.fill(slotX + 2, armorY + 22, slotX + 2 + Math.round(16 * ratio), armorY + 24, accent);
-                    }
+                int slotX = armorX + index * (cardW + gap);
+                drawHudCard(context, slotX, armorY, cardW, 31, accent);
+                if (!stack.isEmpty()) context.drawItem(stack, slotX + 5, armorY + 6);
+                String percent;
+                int ratio;
+                if (stack.isEmpty()) {
+                    percent = "--";
+                    ratio = 0;
+                } else if (!stack.isDamageable() || stack.getMaxDamage() <= 0) {
+                    percent = "100%";
+                    ratio = 100;
+                } else {
+                    ratio = Math.max(0, Math.min(100, Math.round((stack.getMaxDamage() - stack.getDamage()) * 100.0f / stack.getMaxDamage())));
+                    percent = ratio + "%";
                 }
+                int pctColor = ratio <= 20 && !stack.isEmpty() ? 0xFFFFA2A2 : accent;
+                context.drawTextWithShadow(client.textRenderer, hudText(percent), slotX + 27, armorY + 4, pctColor);
+                fillRounded(context, slotX + 27, armorY + 19, cardW - 33, 5, 0xFF28313C);
+                int fillW = Math.round((cardW - 33) * ratio / 100.0f);
+                if (fillW > 0) fillRounded(context, slotX + 27, armorY + 19, fillW, 5, pctColor);
                 index++;
             }
         }
@@ -780,22 +803,64 @@ public final class VisualRenderer {
         if (VisualSettings.get("hud_keystrokes")) {
             int kx = 12;
             int ky = screenH - 74;
-            drawHudKey(context, kx + 24, ky, "W", client.options.forwardKey.isPressed(), accent);
-            drawHudKey(context, kx, ky + 24, "A", client.options.leftKey.isPressed(), accent);
-            drawHudKey(context, kx + 24, ky + 24, "S", client.options.backKey.isPressed(), accent);
-            drawHudKey(context, kx + 48, ky + 24, "D", client.options.rightKey.isPressed(), accent);
-            drawHudKey(context, kx + 82, ky + 24, "L", client.options.attackKey.isPressed(), accent);
-            drawHudKey(context, kx + 106, ky + 24, "R", client.options.useKey.isPressed(), accent);
-            context.drawTextWithShadow(client.textRenderer, Text.literal("KEYS"), kx + 3, ky + 52, 0xFF91A6B6);
+            drawHudKey(context, kx + 24, ky, "W", KEY_ANIMATION[0], accent);
+            drawHudKey(context, kx, ky + 24, "A", KEY_ANIMATION[1], accent);
+            drawHudKey(context, kx + 24, ky + 24, "S", KEY_ANIMATION[2], accent);
+            drawHudKey(context, kx + 48, ky + 24, "D", KEY_ANIMATION[3], accent);
+            drawHudKey(context, kx + 82, ky + 24, "L", KEY_ANIMATION[4], accent);
+            drawHudKey(context, kx + 106, ky + 24, "R", KEY_ANIMATION[5], accent);
+            context.drawTextWithShadow(client.textRenderer, hudText("KEYS"), kx + 3, ky + 52, 0xFF91A6B6);
         }
     }
 
-    private static void drawHudKey(DrawContext context, int x, int y, String key, boolean pressed, int accent) {
-        int fill = pressed ? ((0xE0 << 24) | (accent & 0x00FFFFFF)) : 0xD9161D28;
-        context.fill(x, y, x + 21, y + 21, fill);
-        context.drawBorder(x, y, 21, 21, pressed ? accent : 0x804A5A6B);
-        context.drawCenteredTextWithShadow(MinecraftClient.getInstance().textRenderer, Text.literal(key),
-            x + 10, y + 6, 0xFFF5FAFF);
+    private static Text hudText(String value) {
+        return Text.literal(value).setStyle(Style.EMPTY.withFont(FONT));
+    }
+
+    private static int withAlpha(int rgb, int alpha) {
+        return (Math.max(0, Math.min(255, alpha)) << 24) | (rgb & 0x00FFFFFF);
+    }
+
+    private static void drawHudCard(DrawContext context, int x, int y, int w, int h, int accent) {
+        context.drawTexture(RenderLayer::getGuiTextured, HUD_CARD, x, y, 0, 0, w, h, 512, 128, 512, 128);
+        fillRounded(context, x + 4, y + 5, 3, Math.max(4, h - 10), accent);
+    }
+
+    private static void fillRounded(DrawContext context, int x, int y, int w, int h, int color) {
+        if (w <= 0 || h <= 0) return;
+        int radius = Math.min(h / 2, w / 2);
+        if (radius <= 0) {
+            context.fill(x, y, x + w, y + h, color);
+            return;
+        }
+        for (int dy = 0; dy < h; dy++) {
+            double offsetY = dy < radius ? radius - dy - 0.5
+                : (dy >= h - radius ? dy - (h - radius) + 0.5 : 0.0);
+            int inset = offsetY == 0.0 ? 0 : Math.max(0, radius - (int)Math.floor(Math.sqrt(Math.max(0, radius*radius - offsetY*offsetY))));
+            context.fill(x + inset, y + dy, x + w - inset, y + dy + 1, color);
+        }
+    }
+
+    private static void drawRoundedBorder(DrawContext context, int x, int y, int w, int h, int color) {
+        if (w <= 2 || h <= 2) return;
+        fillRounded(context, x, y, w, h, color);
+        fillRounded(context, x + 1, y + 1, w - 2, h - 2, 0xD9161D28);
+    }
+
+    private static void drawHudKey(DrawContext context, int x, int y, String key, float intensity, int accent) {
+        drawHudCard(context, x, y, 21, 21, accent);
+        fillRounded(context, x + 1, y + 1, 19, 19, withAlpha(accent, (int)(130 * intensity)));
+        int textColor = blendColor(0xFFF5FAFF, accent, intensity * 0.55f);
+        context.drawCenteredTextWithShadow(MinecraftClient.getInstance().textRenderer, hudText(key),
+            x + 10, y + 6, textColor);
+    }
+
+    private static int blendColor(int from, int to, float amount) {
+        float t = Math.max(0, Math.min(1, amount));
+        int r = Math.round(((from >>> 16) & 255) * (1-t) + ((to >>> 16) & 255) * t);
+        int g = Math.round(((from >>> 8) & 255) * (1-t) + ((to >>> 8) & 255) * t);
+        int b = Math.round((from & 255) * (1-t) + (to & 255) * t);
+        return 0xFF000000 | (r << 16) | (g << 8) | b;
     }
 
     private static final class Ring {
